@@ -1,0 +1,169 @@
+/**
+ *
+ *
+ * @author: Bernhard Lukassen
+ * @licence: MIT
+ * @see: {@link https://github.com/Thoregon}
+ */
+
+import NetworkPolicy        from "../network/networkpolicy.mjs";
+
+const debuglog = (...args) => console.log("P2PNetworkPolicy", Date.now(), ":", ...args);
+
+export default class P2PNetworkPolicy extends NetworkPolicy {
+
+    constructor(opt) {
+        super(opt);
+    }
+
+    init() {
+        // this.peers4souls = new Map();  // sync peer connections for a soul
+        super.init();
+        this._awareQ = [];
+    }
+
+    //
+    // lifecycle
+    //
+
+    prepare(evt) {
+        const adaptertypes = universe.netconfig.p2p.adapters;
+        this.net = adaptertypes.map((Adapter) => new Adapter(this, this.opt));
+        this._ready = this.net.length;
+        this.net.forEach((adapter) => adapter.prepare(() => this.adapterReady(adapter)));
+    }
+
+    pause(evt) {
+        // currently don't stop backgroud sync
+    }
+
+    resume(evt) {
+        // discover again, there may be new peers to sync with
+    }
+
+    exit(evt) {
+        this.net?.forEach((adapter) => adapter.exit());
+    }
+
+    closeResource(soul) {
+
+    }
+
+    //
+    // loop control
+    //
+
+    wasReceived(data) {
+        if (!data) return true;
+        if (data.cmd !== 'discover') return false;  // only discover requests must be checked. other messages may be the same
+        const reqid = data.reqid;
+        if (this.receivedRequests.has(reqid)) return true;
+        this.receivedRequests.set(reqid, Date.now());
+        return false;
+    }
+
+    //
+    //
+    //
+
+    received(data, conn, adapter) {
+        // check command coming from other peer
+        const cmd = data.cmd;
+        if (!cmd) return;
+        switch (cmd) {
+            case 'syncIn':
+            case 'syncOut':
+                // check if I have the requested resource id, otherwise ignore
+                this.processSync(cmd === 'syncIn', data, conn, adapter);
+                break;
+            case 'invoke':
+                break;
+            case 'result':
+                break;
+            default:
+                super.received(data, conn, adapter);
+                break;
+        }
+    }
+
+    //
+    // discover
+    //
+
+    async processDiscover(data, conn, adapter) {
+        // todo: check signature, decrypt
+        const { soul } = data;
+        // send to know peers except the requester
+        this.dispatchDiscover(data, conn);
+        // check if I have the requested resource id
+        if (this.isResponsible(soul)) this.sendAware(data, adapter); // await this.connectSyncResource(data, conn);
+    }
+
+    dispatchDiscover(data, from) {
+        this.net.forEach((adapter) => adapter.broadcast(data, from));
+    }
+
+    calcChallengeResponse(soul, challenge) {
+        // hash, encrypt and sign
+        return "challenge_response";
+    }
+
+    //
+    // sync
+    //
+
+    sendAware(data, adapter) {
+        const req             = { ...data, cmd: 'aware' };
+        const sourcepeerid    = data.source;
+        const soul            = data.soul;
+        const resourceHandler = this.getResponsibleResourceHandler(soul);
+        if (!resourceHandler) return;
+        const conn = adapter.getOpenConnection(sourcepeerid);
+        if (conn && conn.open) {
+            debuglog("send aware", sourcepeerid);
+            conn.send(req);
+            resourceHandler.awareOut(data, this, sourcepeerid);
+        } else {
+            adapter.connect(sourcepeerid, (conn) => {
+                debuglog("send aware", sourcepeerid);
+                conn.send(req);
+                resourceHandler.awareOut(data, this, sourcepeerid);
+            });
+        }
+    }
+
+    sendSync(cmd, data, peerid) {
+        const req = { ...data, cmd };
+        const adapter = this.net.find((adapter) => adapter.isApplicable(peerid));
+        if (!adapter) return false;
+        const conn = adapter.getOpenConnection(peerid);
+        if (conn && conn.open) {
+            debuglog("send sync", peerid);
+            conn.send(req);
+            return true;
+        }
+        debuglog("send sync, no connection", conn?.open ?? false, peerid);
+        // conn must be open, if not let the sync timout
+        return false
+    }
+
+    processAware(data, conn, adapter) {
+        const { soul } = data;
+        const resourceHandler = this.getResponsibleResourceHandler(soul);
+        if (!resourceHandler) return;
+        const peerid = conn.peer;
+        resourceHandler.awareIn(data, this, peerid);
+    }
+
+    processSync(incomming, data, conn, adapter) {
+        const { soul } = data;
+        const resourceHandler = this.getResponsibleResourceHandler(soul);
+        if (!resourceHandler) return;
+        const peerid = conn.peer;
+        // this.addPeer4Soul(soul, { adapter, peerid });
+        (incomming)
+            ? resourceHandler.syncIn(data, this, peerid)
+            : resourceHandler.syncOut(data, this, peerid)
+    }
+
+}

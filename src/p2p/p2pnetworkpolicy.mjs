@@ -77,8 +77,10 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
                 this.processSync(cmd === 'syncIn', data, conn, adapter);
                 break;
             case 'invoke':
+                this.processInvoke(data, conn, adapter);
                 break;
             case 'result':
+                this.processResult(data, conn, adapter);
                 break;
             default:
                 super.received(data, conn, adapter);
@@ -120,16 +122,18 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
         if (!resourceHandler) return;
         const conn = adapter.getOpenConnection(sourcepeerid);
         if (conn && conn.open) {
-            debuglog("send aware", sourcepeerid);
-            conn.send(req);
-            resourceHandler.awareOut(data, this, sourcepeerid);
+            this._sendAware(sourcepeerid, conn, req, resourceHandler, data);
         } else {
             adapter.connect(sourcepeerid, (conn) => {
-                debuglog("send aware", sourcepeerid);
-                conn.send(req);
-                resourceHandler.awareOut(data, this, sourcepeerid);
+                this._sendAware(sourcepeerid, conn, req, resourceHandler, data);
             });
         }
+    }
+
+    _sendAware(sourcepeerid, conn, req, resourceHandler, data) {
+        debuglog("send aware", sourcepeerid);
+        conn.send(req);
+        resourceHandler.awareOut(data, this, sourcepeerid);
     }
 
     sendSync(cmd, data, peerid) {
@@ -164,6 +168,56 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
         (incomming)
             ? resourceHandler.syncIn(data, this, peerid)
             : resourceHandler.syncOut(data, this, peerid)
+    }
+
+    //
+    // MQ
+    //
+
+    sendInvoke(soul, req, peerid) {
+        const wreq = { soul, req, cmd: 'invoke' };
+        const adapter = this.net.find((adapter) => adapter.isApplicable(peerid));
+        if (!adapter) return false;
+        const conn = adapter.getOpenConnection(peerid);
+        if (conn && conn.open) {
+            debuglog("send invoke", peerid);
+            conn.send(wreq);
+            return true;
+        }
+        debuglog("send invoke, no connection", conn?.open ?? false, peerid);
+        // conn must be open, if not let the sync timout
+        return false
+    }
+
+    sendResult(soul, data, peerid) {
+        const req = { soul, data, cmd: 'result' };
+        const adapter = this.net.find((adapter) => adapter.isApplicable(peerid));
+        if (!adapter) return false;
+        const conn = adapter.getOpenConnection(peerid);
+        if (conn && conn.open) {
+            debuglog("send result", peerid);
+            conn.send(req);
+            return true;
+        }
+        debuglog("send result, no connection", conn?.open ?? false, peerid);
+        // conn must be open, if not let the sync timout
+        return false
+    }
+
+    processInvoke(data, conn, adapter) {
+        const { soul } = data;
+        const resourceHandler = this.getResponsibleResourceHandler(soul);
+        if (!resourceHandler) return;
+        const peerid = conn.peer;
+        resourceHandler.invoke(data, this, peerid);
+    }
+
+    processResult(data, conn, adapter) {
+        const { soul } = data;
+        const resourceHandler = this.getResponsibleResourceHandler(soul);
+        if (!resourceHandler) return;
+        const peerid = conn.peer;
+        resourceHandler.result(data, this, peerid);
     }
 
 }

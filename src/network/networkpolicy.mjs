@@ -6,7 +6,7 @@
  * @see: {@link https://github.com/Thoregon}
  */
 
-const debuglog = (...args) => console.log("NetworkPolicy", Date.now(), ":", ...args);
+const debuglog = (...args) => {}; // console.log("NetworkPolicy", Date.now(), ":", ...args);
 
 export default class NetworkPolicy {
 

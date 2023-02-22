@@ -10,26 +10,32 @@ let WRITE_INTERVAL = 1200;
 let WRITE_COUNT    = 100;
 let storage;
 
+const debuglog = (...args) => console.log("NeulandDB", Date.now(), ":", ...args);
+const debugerr = (...args) => console.error("NeulandDB", Date.now(), ":", ...args);
+
+
 export default class NeulandDB {
 
     init(StorageAdapter, storageOpt) {
         this.mod       = 0;
         WRITE_COUNT    = storageOpt.writeCount ?? WRITE_COUNT;
         WRITE_INTERVAL = storageOpt.writeInterval ?? WRITE_INTERVAL;
+        debuglog("init storage start");
         storage        = this.storage = new StorageAdapter();
         storage.init(storageOpt);
         universe.$neuland = this;
+        debuglog("init storage done");
         return this;
     }
 
-    start() {
-        (async () => {
-            await storage.load();
-            this.ready = true;
-            this.auto();
-            this._onready?.(this);
-            delete this._onready;
-        })();
+    async start() {
+        debuglog("load storage start");
+        await storage.load();
+        this.ready = true;
+        this.auto();
+        this._onready?.(this);
+        delete this._onready;
+        debuglog("load storage done");
         return this;
     }
 
@@ -52,6 +58,7 @@ export default class NeulandDB {
         this.autoid = setTimeout(() => {
             if (this.mod > 0) {
                 this.mod = 0;
+                debuglog("storage store");
                 storage.store();
             }
             this.auto();
@@ -62,6 +69,7 @@ export default class NeulandDB {
         const mod = ++this.mod;
         if (mod < WRITE_COUNT) return this;
         this.mod = 0;
+        debuglog("storage store");
         storage.store();
     }
 

@@ -8,7 +8,8 @@
 
 import NetworkPolicy        from "../network/networkpolicy.mjs";
 
-const debuglog = (...args) => console.log("P2PNetworkPolicy", Date.now(), ":", ...args);
+const debuglog = (...args) => {}; // console.log("P2PNetworkPolicy", Date.now(), ":", ...args);
+const debugerr = (...args) => console.error("P2PNetworkPolicy", Date.now(), ":", ...args);
 
 export default class P2PNetworkPolicy extends NetworkPolicy {
 
@@ -146,7 +147,7 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
             conn.send(req);
             return true;
         }
-        debuglog("send sync, no connection", conn?.open ?? false, peerid);
+        debugerr("send sync, no connection", conn?.open ?? false, peerid);
         // conn must be open, if not let the sync timout
         return false
     }
@@ -184,7 +185,7 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
             conn.send(wreq);
             return true;
         }
-        debuglog("send invoke, no connection", conn?.open ?? false, peerid);
+        debugerr("send invoke, no connection", conn?.open ?? false, peerid);
         // conn must be open, if not let the sync timout
         return false
     }
@@ -199,7 +200,7 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
             conn.send(req);
             return true;
         }
-        debuglog("send result, no connection", conn?.open ?? false, peerid);
+        debugerr("send result, no connection", conn?.open ?? false, peerid);
         // conn must be open, if not let the sync timout
         return false
     }

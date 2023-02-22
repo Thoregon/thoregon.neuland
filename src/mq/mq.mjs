@@ -12,7 +12,6 @@ import NeulandProducer from "/thoregon.crystalline/lib/producers/neulandproducer
 import NeulandConsumer from "/thoregon.crystalline/lib/consumers/neulandconsumer.mjs";
 
 const WAIT_MQ_DELAY      = 1;
-const MAX_DISCOVER_DELAY = 160;     // timeout in milliseconds for discover requests
 
 export default class MQ extends ResourceHandler {
 

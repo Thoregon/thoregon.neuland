@@ -32,6 +32,12 @@ export default class NeulandStorageAdapter {
     // items
     //
 
+    has(soul) {
+        const db = this.db;
+        if (!db) return false;
+        return db.has(soul);
+    }
+
     get(soul) {
         const db = this.db;
         if (!db) return;

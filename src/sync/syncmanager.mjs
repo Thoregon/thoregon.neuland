@@ -112,11 +112,12 @@ export default class SyncManager extends ResourceHandler {
         let curentity = this.getResource(soul);
         const entity = universe.Automerge.merge(curentity, driver.entity); // there may be syncs in between, so merge it
         this.setResource(soul, entity); // Automerge entities are immutable, this is a modified one -> replace it
-        this.emitResourceChanged(soul, entity);
+        this.emitResourceChanged(soul);
     }
 
-    emitResourceChanged(soul, entity) {
-        // implement
+    emitResourceChanged(soul) {
+        const { resource, listener } = this.getResourceEntry(soul);
+        try { listener?.(soul, resource) } catch (e) { debuglog("ERROR, resource sync listener", e) };
     }
 
     //
@@ -129,12 +130,13 @@ export default class SyncManager extends ResourceHandler {
      * receivers knowing the credential can respond
      * @param {String} soul  resource id
      * @param {Object} entity
+     * @param {Object} listener
      */
-    discover(soul, entity) {
+    discover(soul, entity, listener) {
         // build the following:
         // - with the credential (in opt) encrypt and sing the request
         // - add a challenge the responder must resolve (?)
-        this.setResource(soul, entity);
+        this.setResource(soul, entity, listener);
         this._discover(soul, entity);
     }
 
@@ -142,8 +144,12 @@ export default class SyncManager extends ResourceHandler {
         const policies = this.net;
         const req = {  soul };  // todo [OPEN]: need credential
 
-        if (policy) return policy.sendDiscover(req);
-        policies.forEach((policy) => policy.sendDiscover(req));
+        if (this._discoverWaitId) clearTimeout(this._discoverWaitId);
+
+        this._discoverWaitId = setTimeout(() => {
+            if (policy) return policy.sendDiscover(req);
+            policies.forEach((policy) => policy.sendDiscover(req));
+        }, WAIT_SYNC_DELAY);
     }
 
     rediscover(policy) {
@@ -196,7 +202,6 @@ class SyncDriver {
         const [sync, msg]   = universe.Automerge.generateSyncMessage(this.entity, universe.Automerge.initSyncState());
         this.syncState = { sync, msg };
     }
-
 
     sync({ soul, msgR }, peerid) {
         if (this.isCanceled) return;

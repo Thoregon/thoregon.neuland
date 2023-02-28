@@ -64,18 +64,31 @@ export default class ResourceHandler {
         return this.knownSouls.has(soul);
     }
 
-    addResource(soul, entity) {
+    addResource(soul, resource, listener) {
         const knownSouls = this.knownSouls;
         if (knownSouls.has(soul)) debuglog("soul already registed", soul);
-        knownSouls.set(soul, entity);
+        this.setResource(soul, resource, listener);
     }
 
-    setResource(soul, entity) {
-        this.knownSouls.set(soul, entity);
+    setResource(soul, resource, listener) {
+        const entry = this.getResourceEntry(soul);
+        entry.resource = resource;
+        if (listener != undefined) entry.listener = listener;   // don't overwrite existing listener
+        this.knownSouls.set(soul, entry);
+    }
+
+    getResourceEntry(soul) {
+        return this.knownSouls.get(soul) ?? {};
     }
 
     getResource(soul) {
-        return this.knownSouls.get(soul);
+        const { resource } = this.getResourceEntry(soul);
+        return resource;
+    }
+
+    getListener(soul) {
+        const { resource } = this.getResourceEntry(soul);
+        return resource;
     }
 
     // another peer is aware of the resource

@@ -10,7 +10,7 @@ let WRITE_INTERVAL = 1200;
 let WRITE_COUNT    = 100;
 let storage;
 
-const debuglog = (...args) => console.log("NeulandDB", Date.now(), ":", ...args);
+const debuglog = (...args) => {}; // console.log("NeulandDB", Date.now(), ":", ...args);
 const debugerr = (...args) => console.error("NeulandDB", Date.now(), ":", ...args);
 
 
@@ -76,6 +76,10 @@ export default class NeulandDB {
     //
     // items
     //
+
+    has(soul) {
+        return storage.has(soul);
+    }
 
     get(soul) {
         return storage.get(soul);

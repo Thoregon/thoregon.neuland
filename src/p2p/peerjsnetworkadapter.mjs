@@ -169,7 +169,13 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
             debuglog("peer reconnected", adapter.peerid);
             onopen?.(adapter);      // well, adapter should be 'this'
         });
-        try { peer.reconnect() } catch (e) { debugerr("Can't reconnect peer", e) };
+        try {
+            if (peer.destroyed) {
+                this.prepare();
+            } else {
+                peer.reconnect()
+            }
+        } catch (e) { debugerr("Can't reconnect peer", e) };
     }
 
     reconnectConnection(peerid) {

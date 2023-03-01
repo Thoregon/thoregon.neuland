@@ -145,21 +145,25 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
     }
 
     monitorKnownPeers() {
-        this.maintainAllPeerConnections();
-        const knownPeers = this.knownPeers;
-        const peerconns = this.peer.connections ?? [];
-        const remaining = new Set(knownPeers);
-        knownPeers?.forEach((peerid) => {
-            const conns = peerconns[peerid];
-            if (!conns || conns.length === 0) return;
-            const conn = conns.find((conn) => conn.open);
-            if (!conn) return;
-            remaining.delete(peerid);
-        });
-        this.connectKnownPeers([...remaining.values()]);
-        setTimeout(() => {
+        setTimeout(() => {      // do this first, if any of the following
             this.monitorKnownPeers();
         }, RECONNECT_INTERVAL);
+        try {
+            this.maintainAllPeerConnections();
+            const knownPeers = this.knownPeers;
+            const peerconns  = this.peer.connections ?? [];
+            const remaining  = new Set(knownPeers);
+            knownPeers?.forEach((peerid) => {
+                const conns = peerconns[peerid];
+                if (!conns || conns.length === 0) return;
+                const conn = conns.find((conn) => conn.open);
+                if (!conn) return;
+                remaining.delete(peerid);
+            });
+            this.connectKnownPeers([...remaining.values()]);
+        } catch (e) {
+            debugerr("moitorKnownPeers", e);
+        }
     }
 
     reconnectPeer(onopen) {
@@ -331,11 +335,11 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
         const cmd = data.cmd;
         if (!cmd) return;
         switch (cmd) {
-            case 'heartbeat':
-                this.processHeartbeat(conn);
+            case 'heart':
+                this.processHeart(conn);
                 break;
-            case 'alive':
-                this.processAlive(conn);
+            case 'beat':
+                this.processBeat(conn);
                 break;
             default:
                 this.policy.received(data, conn, this);
@@ -348,23 +352,23 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
     // heartbeat
     //
 
-    sendHeartbeat(conn) {
-        conn.send({ cmd: 'heartbeat'});
+    sendHeart(conn) {
+        conn.send({ cmd: 'heart'});
     }
 
-    processHeartbeat(conn) {
-        conn.send({ cmd: 'alive'});
+    processHeart(conn) {
+        conn.send({ cmd: 'beat'});
     }
 
-    processAlive(conn) {
-        // NOP: do nothing
+    processBeat(conn) {
+
     }
 
     startHeartbeat(conn) {
         if (!HEARTBEAT) return;
         setTimeout(() => {
             if (!conn.open) return;
-            this.sendHeartbeat(conn);
+            this.sendHeart(conn);
             this.startHeartbeat(conn);
         }, HEARTBEAT_INTERVAL);
     }

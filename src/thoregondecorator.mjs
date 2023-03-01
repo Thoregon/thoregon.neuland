@@ -24,8 +24,6 @@ import {
     isSerializedRef,
     serializeRef,
     deserializeRef,
-    simpleSerialize,
-    canReference,
     classOrigin,
     origin2Class,
     isThoregon,
@@ -125,6 +123,7 @@ export default class ThoregonDecorator extends AccessObserver {
      * @returns {Proxy<Object>}     decorated entity
      */
     static observe(target, { parent, soul, Cls, metaClass, encrypt, decrypt, amdoc } = {}) {
+        if (target == undefined) return undefined;
         const proxy = super.observe(target, { parent, soul, Cls, metaClass, encrypt, decrypt, amdoc });
         const decorator = proxy.$access;
         if (decorator) {
@@ -269,9 +268,14 @@ export default class ThoregonDecorator extends AccessObserver {
     }
 
     doSet(target, prop, value, receiver) {
-        if (isObject(value) && !this.isObserved(value)) value = ThoregonDecorator.observe(value, { parent: this.proxy$, encrypt: this.encrypt$, decrypt: this.decrypt$ });
+        if (value != undefined && isObject(value) && !this.isObserved(value)) value = ThoregonDecorator.observe(value, { parent: this.proxy$, encrypt: this.encrypt$, decrypt: this.decrypt$ });
         this._modified = true;
-        super.doSet(target, prop, value, receiver);
+        if (value === undefined) value = null;  // Automerge can not handle undefined
+        const oldvalue = Reflect.get(target, prop, receiver);
+        if (value === oldvalue) return;
+        (value !== null)
+            ? super.doSet(target, prop, value, receiver)
+            : super.doDelete(target, prop, receiver);
         this.__setAMProperty__(prop, value);
         if (this.materialized) {
             this.__materialize__();
@@ -280,13 +284,19 @@ export default class ThoregonDecorator extends AccessObserver {
     }
 
     afterSet(target, prop, value, receiver) {
-        const soul   = this._soul;
-        const samdoc = AM().clone(this.amdoc);
-        SYNC().discover(soul, samdoc, this._synced);
+        const soul    = this._soul;
+        const syncmgr = SYNC();
+        if (syncmgr.isResponsible(soul)) {
+            let samdoc = AM().merge(syncmgr.getResource(soul), this.amdoc);
+            syncmgr.discover(soul, samdoc);
+        } else {
+            const samdoc = AM().clone(this.amdoc);
+            syncmgr.discover(soul, samdoc, this._synced);
+        }
     }
 
     doDelete(target, prop, receiver) {
-        this.doSet(target, prop, undefined, receiver);
+        this.doSet(target, prop, null, receiver);
     }
 
     //
@@ -390,7 +400,10 @@ export default class ThoregonDecorator extends AccessObserver {
             if (prop === '_') return; //
             let toval = Reflect.get(to, prop);
             if (toval === value) return;
-            if (isSerializedRef(value)) {
+            if (isNil(value)) {
+                changes.del.push({ property: prop, oldValue: Reflect.get(to, prop) });
+                Reflect.deleteProperty(to, prop);
+            } else if (isSerializedRef(value)) {
                 const currval = curr?.[prop];
                 if (value === currval) return;
                 // thoregon entity -> lazy init

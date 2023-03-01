@@ -136,7 +136,7 @@ export default class SyncManager extends ResourceHandler {
         // build the following:
         // - with the credential (in opt) encrypt and sing the request
         // - add a challenge the responder must resolve (?)
-        this.setResource(soul, entity, listener);
+        if (entity != undefined) this.setResource(soul, entity, listener);
         this._discover(soul, entity);
     }
 

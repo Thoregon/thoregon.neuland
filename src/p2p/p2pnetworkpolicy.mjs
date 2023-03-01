@@ -54,6 +54,10 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
     // loop control
     //
 
+    usedDiscoverId(reqid) {
+        this.receivedRequests.set(reqid, Date.now());   // don't answer request comming from myself
+    }
+
     wasReceived(data) {
         if (!data) return true;
         if (data.cmd !== 'discover') return false;  // only discover requests must be checked. other messages may be the same
@@ -95,7 +99,8 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
 
     async processDiscover(data, conn, adapter) {
         // todo: check signature, decrypt
-        const { soul } = data;
+        const { soul, source } = data;
+        if (this.isOwnAdapter(source)) return;  // was my own request, don't dispatch again
         // send to know peers except the requester
         this.dispatchDiscover(data, conn);
         // check if I have the requested resource id

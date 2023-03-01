@@ -83,10 +83,18 @@ export default class NetworkPolicy {
     sendDiscover(req) {
         const adapters = this.net;
         req = { ...req, cmd: 'discover', reqid: universe.random(), c: this.getCredentialRef() };
+        this.usedDiscoverId(req.reqid);
         adapters.forEach((adapter) => {
             req.source = adapter.peerid;
             adapter.broadcast(req)
         });
+    }
+
+    usedDiscoverId(id) {}
+
+    isOwnAdapter(source) {
+        const foundadapter = this.net.find((adapter) => adapter.peerid === source);
+        return foundadapter;
     }
 
     received(data, conn, adapter) {

@@ -208,6 +208,25 @@ export default class ThoregonDecorator extends AccessObserver {
     }
 
     //
+    // proxy handler
+    //
+
+
+    has(target, key) {
+        return Reflect.has(this.target, key);
+    }
+
+    ownKeys(target) {
+        return Reflect.ownKeys(this.target).filter((prop) => this.isEnumerable(name));
+    }
+
+    isEnumerable(name) {
+        let propertySpec = this.metaClass$.getAttribute(name) ?? { enumerable : false }; // if no property spec skip it in enumerations
+        return !isTimestamp(name) || propertySpec.enumerable;
+    } // add others when implemented
+
+
+    //
     // INIT
     //
 
@@ -252,6 +271,21 @@ export default class ThoregonDecorator extends AccessObserver {
     //
 
     doGet(target, prop, receiver) {
+        if (prop === 'then') return;
+        // if the property is available return it. this is essential to invoke functions as usual!
+        // !! Don't wrap with a Promise, also not with a resolved Promise - Promise.resolve(Reflect.get(target, prop))
+        if (prop === 'is_empty') {
+            // todo [REFACTOR]: if nedded add other 'functional' properties, extract to method
+            return Object.keys(this.target).length === 0;
+        }
+        if (prop === 'length') {
+            // todo [REFACTOR]: if nedded add other 'functional' properties, extract to method
+            return Object.keys(this.target).length;
+        }
+        if (prop === 'soul') {
+            // todo [REFACTOR]: if nedded add other 'functional' properties, extract to method
+            return this._soul;
+        }
         let value = super.doGet(target, prop, receiver);
         if (value == undefined) {
             // check if it layz initilaized
@@ -268,14 +302,19 @@ export default class ThoregonDecorator extends AccessObserver {
     }
 
     doSet(target, prop, value, receiver) {
+        if (isTimestamp(prop)) return;      // don't modify timestamps
         if (value != undefined && isObject(value) && !this.isObserved(value)) value = ThoregonDecorator.observe(value, { parent: this.proxy$, encrypt: this.encrypt$, decrypt: this.decrypt$ });
         this._modified = true;
         if (value === undefined) value = null;  // Automerge can not handle undefined
         const oldvalue = Reflect.get(target, prop, receiver);
         if (value === oldvalue) return;
-        (value !== null)
-            ? super.doSet(target, prop, value, receiver)
-            : super.doDelete(target, prop, receiver);
+        if (value !== null) {
+            this.__maintainTimestamps__(false);
+            super.doSet(target, prop, value, receiver);
+        }  else {
+            this.__maintainTimestamps__(true);
+            super.doDelete(target, prop, receiver);
+        }
         this.__setAMProperty__(prop, value);
         if (this.materialized) {
             this.__materialize__();
@@ -297,6 +336,29 @@ export default class ThoregonDecorator extends AccessObserver {
 
     doDelete(target, prop, receiver) {
         this.doSet(target, prop, null, receiver);
+    }
+
+    afterDelete(target, prop, receiver) {
+        this.afterSet(target, prop, null, receiver);
+    }
+
+    __maintainTimestamps__(withdelete = false) {
+        // will store it anyways for every entity.
+        // entities with 'suppressTimestamps' just can't get the values
+        const target = this.target;
+        const now = universe.now;
+        if (!target.created) {
+            target.created = now;
+            this.__setAMProperty__('created', now);
+        }
+        if (withdelete) {
+            // target.deleted = now;
+            target.deleted = now;
+            this.__setAMProperty__('deleted', now);
+        } else {
+            target.modified = now;
+            this.__setAMProperty__('modified', now);
+        }
     }
 
     //
@@ -358,6 +420,7 @@ export default class ThoregonDecorator extends AccessObserver {
         const origin = classOrigin(from);
         to._ = { origin };
         Object.entries(from).forEach(([prop, value]) => {
+            if (isPrivateProperty(prop)) return;
             let propertySpec = this.__attributeSpec__(prop, value);
             let toval        = to[prop];
             if (toval === value) return;  // check if some information needs to be used by the thoregon decorator
@@ -377,6 +440,7 @@ export default class ThoregonDecorator extends AccessObserver {
     }
 
     __setAMProperty__(prop, value) {
+        if (isPrivateProperty(prop)) return;
         const amdoc = this.amdoc;
         if (isThoregon(value)) value = serializeRef(value);
         this.amdoc = AM().change(amdoc, (doc) => doc[prop] = value);
@@ -396,7 +460,8 @@ export default class ThoregonDecorator extends AccessObserver {
         const entityprops = new Set(Object.keys(to));
         Object.entries(from).forEach(([prop, value]) => {
             entityprops.delete(prop);
-            let propertySpec = this.__attributeSpec__(prop, value);
+            if (isPrivateProperty(prop)) return;;
+            // let propertySpec = this.__attributeSpec__(prop, value);
             if (prop === '_') return; //
             let toval = Reflect.get(to, prop);
             if (toval === value) return;
@@ -436,7 +501,12 @@ export default class ThoregonDecorator extends AccessObserver {
         const curram = this.amdoc;
         this.amdoc = AM().merge(this.amdoc, samdoc);
         const changes = this.__syncAM2Entity__(this.amdoc, this.target, curram);
-        if (changes.set?.length > 0 || changes.del?.length > 0) this.emit('change', { property: '*', changes, obj: this.proxy$, type: 'changes', isSync: true });
+        if (this.__hasChangesToEmit__(changes)) this.emit('change', { property: '*', changes, obj: this.proxy$, type: 'changes', isSync: true });
+    }
+
+    __hasChangesToEmit__(changes) {
+        const doEmit = changes.set?.find((change) => shouldEmit(change.property)) ?? false;
+        return doEmit || changes.del?.length > 0;
     }
 
     //

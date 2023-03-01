@@ -217,11 +217,11 @@ export default class ThoregonDecorator extends AccessObserver {
     }
 
     ownKeys(target) {
-        return Reflect.ownKeys(this.target).filter((prop) => this.isEnumerable(name));
+        return Reflect.ownKeys(this.target).filter((prop) => this.isEnumerable(prop));
     }
 
     isEnumerable(name) {
-        let propertySpec = this.metaClass$.getAttribute(name) ?? { enumerable : false }; // if no property spec skip it in enumerations
+        let propertySpec = this.metaClass$.getAttribute(name) ?? { enumerable : !isPrivateProperty(name) }; // if no property spec skip it in enumerations
         return !isTimestamp(name) || propertySpec.enumerable;
     } // add others when implemented
 

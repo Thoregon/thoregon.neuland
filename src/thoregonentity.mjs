@@ -1,5 +1,3 @@
-import ThoregonDecorator from "../../thoregon.archetim/lib/thoregondecorator.mjs";
-
 /**
  *
  *
@@ -8,8 +6,11 @@ import ThoregonDecorator from "../../thoregon.archetim/lib/thoregondecorator.mjs
  * @see: {@link https://github.com/Thoregon}
  */
 
-export default class ThoregonEntity {
+import ThoregonDecorator          from "./thoregondecorator.mjs";
 
+const checkInQ = [];
+
+const ThoregonEntity = (base) => class ThoregonEntity extends (base || Object) {
 
     //
     // Instantiation
@@ -66,6 +67,7 @@ export default class ThoregonEntity {
     static from(soul, { cls, dothrow } = {}) {
         const { encrypt, decrypt } = this.getCrypto();
 
+        cls = cls ?? this;
         // get the instance from
         const instance = universe.ThoregonDecorator.from(soul, { encrypt, decrypt, cls, dothrow });
         return instance;
@@ -85,12 +87,12 @@ export default class ThoregonEntity {
      * @returns {Promise<*>}
      */
 
-    async materialize(props, { store, encrypt, decrypt } = {}) {
-        const { encrypt: fallbackencrypt, decrypt: fallbackdecrypt } = await this.getCrypto();
+     materialize(props, { soul, encrypt, decrypt } = {}) {
+        const { encrypt: fallbackencrypt, decrypt: fallbackdecrypt } = this.getCrypto();
         Object.assign(this, props);
 
-        const entity = universe.ThoregonDecorator.observe(this, { store, encrypt: encrypt ?? fallbackencrypt, decrypt: decrypt ?? fallbackdecrypt });
-        await entity.__materialize__();
+        const entity = universe.ThoregonDecorator.observe(this, { soul, encrypt: encrypt ?? fallbackencrypt, decrypt: decrypt ?? fallbackdecrypt });
+        entity.__materialize__();
         return entity;
     }
 
@@ -101,12 +103,12 @@ export default class ThoregonEntity {
      * @param props
      * @return {Promise<void>}
      */
-    async create(props, { store, encrypt, decrypt } = {}) {
-        const { encrypt: fallbackencrypt, decrypt: fallbackdecrypt } = await this.getCrypto();
+    create(props, { soul, encrypt, decrypt } = {}) {
+        const { encrypt: fallbackencrypt, decrypt: fallbackdecrypt } = this.getCrypto();
         Object.assign(this, props);
 
-        const entity = universe.ThoregonDecorator.observe(this, { store, encrypt: encrypt ?? fallbackencrypt, decrypt: decrypt ?? fallbackdecrypt });
-        if (store) await entity.__materialize__();
+        const entity = universe.ThoregonDecorator.observe(this, { soul, encrypt: encrypt ?? fallbackencrypt, decrypt: decrypt ?? fallbackdecrypt });
+        if (store) entity.__materialize__();
         return entity;
     }
 

@@ -374,7 +374,7 @@ export default class ThoregonDecorator extends AccessObserver {
 
     static __entityFrom__(amdoc) {
         const origin = amdoc._?.o;
-        const Cls = origin ? origin2Class(origin) : ObjCls;
+        const { Cls, repo } = origin2Class(origin);
         const entity = new Cls();
         return entity;
     }

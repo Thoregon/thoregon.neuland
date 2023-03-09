@@ -83,6 +83,10 @@ export default class NetworkAdapter {
         return false;
     }
 
+    isReady() {
+        return true;
+    }
+
     //
     // Q
     //

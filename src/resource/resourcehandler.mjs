@@ -81,6 +81,10 @@ export default class ResourceHandler {
         return this.knownSouls.get(soul) ?? {};
     }
 
+    dropResource(soul) {
+        this.knownSouls.delete(soul);
+    }
+
     getResource(soul) {
         const { resource } = this.getResourceEntry(soul);
         return resource;

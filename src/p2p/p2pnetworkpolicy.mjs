@@ -8,8 +8,8 @@
 
 import NetworkPolicy        from "../network/networkpolicy.mjs";
 
-const debuglog = (...args) => {}; // console.log("P2PNetworkPolicy", Date.now(), ":", ...args);
-const debugerr = (...args) => console.error("P2PNetworkPolicy", Date.now(), ":", ...args);
+const debuglog = (...args) => {} // console.log("P2PNetworkPolicy", universe.inow, ":", ...args);  // {}
+const debugerr = (...args) => console.error("P2PNetworkPolicy", universe.inow, ":", ...args);
 
 export default class P2PNetworkPolicy extends NetworkPolicy {
 
@@ -44,10 +44,6 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
 
     exit(evt) {
         this.net?.forEach((adapter) => adapter.exit());
-    }
-
-    closeResource(soul) {
-
     }
 
     //

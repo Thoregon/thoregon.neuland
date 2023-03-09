@@ -52,7 +52,9 @@ export default class NetworkPolicy {
     }
 
     adapterReady(adapter) {
+        debuglog("adapterReady", adapter);
         if ((--this._ready) === 0) {
+            debuglog("all adapters ready", adapter);
             this.resourcehandlers.forEach((handler) => handler.policyIsReady(this));
         }
     }
@@ -80,13 +82,23 @@ export default class NetworkPolicy {
     // networking
     //
 
-    sendDiscover(req) {
+    canDiscover() {
+        const adapter = this.net.find((adapter) => adapter.isReady());
+        return adapter != undefined;
+    }
+
+    sendDiscover(req, opt = {}) {
         const adapters = this.net;
         req = { ...req, cmd: 'discover', reqid: universe.random(), c: this.getCredentialRef() };
         this.usedDiscoverId(req.reqid);
+        const peerid = opt.peerid;
         adapters.forEach((adapter) => {
             req.source = adapter.peerid;
-            adapter.broadcast(req)
+            if (peerid) {
+                adapter.send(peerid, req);
+            } else {
+                adapter.broadcast(req)
+            }
         });
     }
 

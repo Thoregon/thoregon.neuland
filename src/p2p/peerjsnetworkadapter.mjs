@@ -22,7 +22,9 @@ const RETRY_CONNECT_INTERVAL = 300;
 let Peer;
 
 const debuglog = (...args) => {}; // console.log("PeerJSNetworkAdapter", Date.now(), ":", ...args);
-const debugerr = (...args) => console.error("PeerJSNetworkAdapter", Date.now(), ":", ...args);
+const debugerr = (...args) => console.error("PeerJSNetworkAdapter", universe.inow, ":", ...args);
+
+const debuglog2 = (...args) => {}; // onsole.log("PeerJSNetworkAdapter", universe.inow, ":", ...args);
 
 export default class PeerJSNetworkAdapter extends NetworkAdapter {
 
@@ -56,11 +58,12 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
     //  - add 'retry' loop, maybe currently the network is unavailable -> listen to network status
     /*async*/ prepare(onopen) {
         return new Promise((resolve) => {
-            let peer = new Peer(this.peerid, {});
+            const peeropt = universe.netconfig?.p2p?.signaling ?? {};
+            const peer    = new Peer(this.peerid, peeropt);
             this.addOnOpen(onopen);
 
             peer.on('open', (id) => {
-                debuglog('My peer ID is: ' + id);
+                debuglog2('My peer ID is: ' + id);
                 if (!this.peerid) this.peerid = id;
                 if (this.knownPeers?.length > 0) {
                     this.monitorKnownPeers();
@@ -241,7 +244,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
     useConnection(conn, otherPeerId, onopen) {
         otherPeerId = otherPeerId ?? conn.peer;
         conn.on('open', (evt) => {
-            debuglog('conn opened from', otherPeerId);
+            debuglog2('conn opened from', otherPeerId);
             // if (allConns[otherPeerId] != undefined) debuglog(`!! Peer '${otherPeerId}' was connected before !!`);
             conn.on('data', (data) => {
                 // debuglog('Received', data);
@@ -298,6 +301,10 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
         const openconns    = [];
         Object.values(connsperpeer).forEach(pconns => openconns.push(...(pconns.filter(pconn => pconn.open))));
         return openconns;
+    }
+
+    isReady() {
+        return this.peer?.open ?? false;
     }
 
     //

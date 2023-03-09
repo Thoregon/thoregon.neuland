@@ -12,11 +12,11 @@
 
 import ResourceHandler from "../resource/resourcehandler.mjs";
 
-const debuglog = (...args) => {}; // console.log("Sync", Date.now(), ":", ...args);
-const debuglog2 = (...args) => {}; // console.log("SyncDriver", Date.now(), ":", ...args);
+const debuglog = (...args) => {}; // console.log("Sync", universe.inow, ":", ...args);   //  {};
+const debuglog2 = (...args) => {}; // console.log("SyncDriver", universe.inow, ":", ...args); //  {};
 
 const MAX_SYNC_ITERATIONS =   10;
-const WAIT_SYNC_DELAY     = 200;
+const WAIT_SYNC_DELAY     = 150;
 
 export default class SyncManager extends ResourceHandler {
 
@@ -37,7 +37,7 @@ export default class SyncManager extends ResourceHandler {
     // lifecycle
     //
 
-    discoverAvailable(policy) {
+    policyIsReady(policy) {
         this.rediscover(policy);
     }
 
@@ -132,29 +132,44 @@ export default class SyncManager extends ResourceHandler {
      * @param {Object} entity
      * @param {Object} listener
      */
-    discover(soul, entity, listener) {
+    discover(soul, entity, listener, opt) {
         // build the following:
         // - with the credential (in opt) encrypt and sing the request
         // - add a challenge the responder must resolve (?)
         if (entity != undefined) this.setResource(soul, entity, listener);
-        this._discover(soul, entity);
+        this._discover(soul, entity, opt);
     }
 
-    _discover(soul, entity, policy) {
+    _discover(soul, entity, policy, opt) {
         const policies = this.net;
         const req = {  soul };  // todo [OPEN]: need credential
 
+        let discoverQ = this._discoverQ;
+        if (!discoverQ) discoverQ = this._discoverQ = [];
+        discoverQ.push(((policy, req, opt) => (() => {
+            if (policy) return policy.sendDiscover(req, opt);
+            policies.forEach((policy) => policy.sendDiscover(req, opt));
+        }))(policy, req, opt));
+
         if (this._discoverWaitId) clearTimeout(this._discoverWaitId);
 
+        debuglog("discover", soul);
+
         this._discoverWaitId = setTimeout(() => {
-            if (policy) return policy.sendDiscover(req);
-            policies.forEach((policy) => policy.sendDiscover(req));
+            let discoverQ = this._discoverQ;
+            if (!discoverQ) return;
+            let fn;
+            while (fn = discoverQ.shift()) {
+                fn();
+            }
         }, WAIT_SYNC_DELAY);
     }
 
-    rediscover(policy) {
+    rediscover(policy, opt) {
+        if (!policy.canDiscover()) return;
         const knownSouls = this.knownSouls;
-        knownSouls.forEach((entity, soul) => this._discover(soul, entity, policy));
+        debuglog("rediscover");
+        knownSouls.forEach((entity, soul) => this._discover(soul, entity, policy, opt));
     }
 }
 

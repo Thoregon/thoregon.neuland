@@ -15,8 +15,11 @@ import ResourceHandler from "../resource/resourcehandler.mjs";
 const debuglog = (...args) => {}; // console.log("Sync", universe.inow, ":", ...args);   //  {};
 const debuglog2 = (...args) => {}; // console.log("SyncDriver", universe.inow, ":", ...args); //  {};
 
-const MAX_SYNC_ITERATIONS =   10;
-const WAIT_SYNC_DELAY     = 150;
+const MAX_SYNC_ITERATIONS = 10;
+const DISCOVER_DELAY      = 50;
+const WAIT_SYNC_DELAY     = 100000;
+
+const USE_WATCHDOG        = true;
 
 export default class SyncManager extends ResourceHandler {
 
@@ -162,7 +165,7 @@ export default class SyncManager extends ResourceHandler {
             while (fn = discoverQ.shift()) {
                 fn();
             }
-        }, WAIT_SYNC_DELAY);
+        }, DISCOVER_DELAY);
     }
 
     rediscover(policy, opt) {
@@ -258,7 +261,12 @@ class SyncDriver {
 
     sendSync({ soul, msg }, policy, finished) {
         // setup watchdog to proceed to next in sync Q
-        if (!finished) this.synctimeoutid = setTimeout(() => this.cancel(), WAIT_SYNC_DELAY);
+        if (!finished) {
+            if (USE_WATCHDOG) {
+                if (this.synctimeoutid) clearTimeout(this.synctimeoutid);
+                this.synctimeoutid = setTimeout(() => this.cancel(), WAIT_SYNC_DELAY);
+            }
+        }
         debuglog2("sendSync, set timeout", soul, this.peerid, this.synctimeoutid);
         const cmd = this.incomming ? 'syncOut' : 'syncIn';
         const wasSent = policy.sendSync(cmd, { soul, msgR: msg }, this.peerid);

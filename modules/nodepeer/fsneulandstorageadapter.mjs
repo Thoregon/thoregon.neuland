@@ -25,15 +25,21 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
     // storage
     //
 
-    async load() {
+    async load(retry = true) {
         const filepath = this.opt.filepath;
         if (!exists(filepath)) {
             ensureDir(filepath, true);
             this.db = new Map();
             await this.store();
         } else {
-            const bin = await fs.readFile(filepath);
-            this.db = bin ? deserialize(bin) : new Map();
+            try {
+                const bin = await fs.readFile(filepath);
+                this.db   = bin ? deserialize(bin) : new Map();
+            } catch (e) {
+                console.log("FSNeulandStorageAdapter can't open DB file", e);
+                if (retry) fs.unlink(filepath);
+                await this.load(false);
+            }
         }
     }
 

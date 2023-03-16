@@ -6,7 +6,7 @@
  * @see: {@link https://github.com/Thoregon}
  */
 
-let WRITE_INTERVAL = 1200;
+let WRITE_INTERVAL = 2000;
 let WRITE_COUNT    = 100;
 let storage;
 

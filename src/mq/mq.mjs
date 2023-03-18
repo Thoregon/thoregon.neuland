@@ -36,14 +36,19 @@ export default class MQ extends ResourceHandler {
         return this.producers.has(soul) || this.consumers.has(soul);
     }
 
-//
+    //
     // producers & consumers
     //
+
+    async consumerFor(soul) {
+        return this.getService(soul);
+    }
 
     addProducer(soul, service) {
         const producer = NeulandProducer.at(soul, service);
         this.producers.set(soul, producer);
         producer.mq = this;
+        return service;
     }
 
     removeProducer(soul) {

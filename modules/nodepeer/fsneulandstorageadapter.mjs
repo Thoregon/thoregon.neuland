@@ -36,6 +36,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
                 const bin = await fs.readFile(filepath);
                 this.db   = bin ? deserialize(bin) : new Map();
             } catch (e) {
+                if (!retry) return;
                 console.log("FSNeulandStorageAdapter can't open DB file", e);
                 if (retry) fs.unlink(filepath);
                 await this.load(false);
@@ -48,6 +49,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             const db = this.db;
             if (!db) return;
             const bin = serialize(db);
+            if (bin == undefined || bin.length === 0) return;
             await fs.writeFile(this.opt.filepath, bin);
         } catch (e) {
             console.log(e);

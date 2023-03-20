@@ -67,9 +67,8 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
                 if (!this.peerid) this.peerid = id;
                 if (this.knownPeers?.length > 0) {
                     this.monitorKnownPeers();
-                } else {
-                    this.openAchieved();
                 }
+                this.openAchieved();
                 resolve(this);
             });
 

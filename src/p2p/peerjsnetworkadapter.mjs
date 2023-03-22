@@ -208,7 +208,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
         if (peer.disconnected) return this.reconnectPeer(() => this.connect(otherPeerId, onopen));
         this.maintainPeerConnections(otherPeerId);
         let conn = this.getOpenConnection(otherPeerId);
-        if (conn) return onopen?.();  // connection already established
+        if (conn) return onopen?.(conn);  // connection already established
         try {
             conn = peer.connect(otherPeerId);
             this.useConnection(conn, otherPeerId, onopen);
@@ -273,17 +273,17 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
         this.reconnectConnection(peerid);
     }
 
-    send(otherPeerId, req) {
+    send(otherPeerId, req, cb) {
         const conn = this.getOpenConnection(otherPeerId);
-        if (!conn) return false;
-        // if (conn.peerConnection.connectionState !== 'connected') {
-        if (!conn.open) {
-            debuglog('connection is disconnected', otherPeerId);
-            // reconnect? if yes then only one try, otherwise it is not relevant
-            return false;
+        if (!conn || !conn.open) {
+            this.connect(otherPeerId, (conn) => {
+                conn.send(req);
+                cb?.(conn);
+            });
+        } else {
+            conn.send(req);
+            cb?.(conn);
         }
-        conn.send(req);
-        return true;
     }
 
     //

@@ -8,7 +8,7 @@
 
 import NetworkAdapter from "../networkadapter.mjs";
 
-const debuglog = (...args) => console.log("$$ ChannelRelayAdapter", universe.inow, ":", ...args); // console.log("P2PNetworkPolicy", universe.inow, ":", ...args);  // {}
+const debuglog = (...args) => {}; // console.log("$$ ChannelRelayAdapter", universe.inow, ":", ...args); // console.log("P2PNetworkPolicy", universe.inow, ":", ...args);  // {}
 const debugerr = (...args) => console.error("$$ ChannelRelayAdapter", universe.inow, ":", ...args);
 
 const TRIBE_PREFIX = 'PeerJS-';

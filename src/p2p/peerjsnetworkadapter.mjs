@@ -26,6 +26,8 @@ const debugerr = (...args) => console.error("PeerJSNetworkAdapter", universe.ino
 
 const debuglog2 = (...args) => {}; // onsole.log("PeerJSNetworkAdapter", universe.inow, ":", ...args);
 
+const isConnOpen = (conn) => conn?.open && conn?.peerConnection.connectionState === 'connected';
+
 export default class PeerJSNetworkAdapter extends NetworkAdapter {
 
     constructor(policy) {
@@ -139,7 +141,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
     //
 
     connectKnownPeers(knownPeers) {
-        knownPeers = knownPeers ?? this.knownPeer;
+        knownPeers = knownPeers ?? [...this.knownPeers];
         knownPeers?.forEach((peerid) => this.connect(peerid, (conn) => {
             this.openAchieved();
             this.established(conn);
@@ -158,7 +160,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
             knownPeers?.forEach((peerid) => {
                 const conns = peerconns[peerid];
                 if (!conns || conns.length === 0) return;
-                const conn = conns.find((conn) => conn.open);
+                const conn = conns.find((conn) => isConnOpen(conn));
                 if (!conn) return;
                 remaining.delete(peerid);
             });
@@ -222,14 +224,14 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
 
     getOpenConnection(peerid) {
         const conns = this.peer?.connections?.[peerid] ?? [];
-        const conn = conns.find((conn) => conn.open);
+        const conn = conns.find((conn) => isConnOpen(conn));
         return conn;
     }
 
     maintainPeerConnections(peerid) {
-        try { this.peer?.connections?.[peerid]?.filter((conn) => !conn.open).forEach((conn) => conn.close());} catch (ignore) { }
+        try { this.peer?.connections?.[peerid]?.filter((conn) => !isConnOpen(conn)).forEach((conn) => conn.close());} catch (ignore) { }
         try {
-            const conns = this.peer?.connections?.[peerid]?.filter((conn) => !conn.open);
+            const conns = this.peer?.connections?.[peerid]?.filter((conn) => !isConnOpen(conn));
             conns.pop(); // leave last (latest) opened connection
             conns.forEach((conn) => conn.close());
         } catch (ignore) { }
@@ -275,7 +277,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
 
     send(otherPeerId, req, cb) {
         const conn = this.getOpenConnection(otherPeerId);
-        if (!conn || !conn.open) {
+        if (!conn || !isConnOpen(conn)) {
             this.connect(otherPeerId, (conn) => {
                 conn.send(req);
                 cb?.(conn);
@@ -292,13 +294,13 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
 
     connIsReady(conn) {
         // todo [?]: check also if connection has failed?
-        return conn?.open ?? false;
+        return isConnOpen(conn) ?? false;
     }
 
     getOpenConnections() {
         const connsperpeer = this.peer.connections;
         const openconns    = [];
-        Object.values(connsperpeer).forEach(pconns => openconns.push(...(pconns.filter(pconn => pconn.open))));
+        Object.values(connsperpeer).forEach(pconns => openconns.push(...(pconns.filter(pconn => isConnOpen(pconn)))));
         return openconns;
     }
 
@@ -315,7 +317,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
         Object.entries(peerconns).forEach(([peeris, conns]) => {
             conns.forEach((conn) => {
                 if (conn === exceptconn) return;  // don't send request back
-                if (conn.open) conn.send(data);
+                if (isConnOpen(conn)) conn.send(data);
             })
         })
         return this;
@@ -373,7 +375,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
     startHeartbeat(conn) {
         if (!HEARTBEAT) return;
         setTimeout(() => {
-            if (!conn.open) return;
+            if (!isConnOpen(conn)) return;
             this.sendHeart(conn);
             this.startHeartbeat(conn);
         }, HEARTBEAT_INTERVAL);

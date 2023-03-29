@@ -241,8 +241,9 @@ class SyncDriver {
         debuglog2("generateSyncMessage");
         this.syncState = { sync: syncL, msg: msgL };
         if (!this.siter--) {
-            debugger;
-            return this.cancel();
+            // debugger;
+            // return this.cancel();
+            return this.syncFinished();
         }
         const policy = this.policy;
         debuglog2("sendSync iteration");

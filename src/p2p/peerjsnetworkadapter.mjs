@@ -67,9 +67,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
             peer.on('open', (id) => {
                 debuglog2('My peer ID is: ' + id);
                 if (!this.peerid) this.peerid = id;
-                if (this.knownPeers?.length > 0) {
-                    this.monitorKnownPeers();
-                }
+                this.monitorKnownPeers();
                 this.openAchieved();
                 resolve(this);
             });
@@ -89,7 +87,14 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
 
             peer.on('disconnected', (evt) => {
                 debuglog('peer disconnected', this.peerid);
-                try { this.peer.reconnect();} catch (e) { debugerr("Can't reconnect peer", e) }
+                try {
+                    if (peer.destroyed) {
+                        if (this._maintaintimeoutid) clearTimeout(this._maintaintimeoutid);
+                        this.prepare();
+                    } else {
+                        this.peer.reconnect();
+                    }
+                } catch (e) { debugerr("Can't reconnect peer", e) }
             });
 
             peer.on('error', (err) => {
@@ -140,6 +145,26 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
     // management
     //
 
+    maintainPeer() {
+        if (this.peer?.open) return false;
+        try {
+            const peer = this.peer;
+            if (peer) {
+                peer.disconnect();
+                peer.destroy()
+            }
+        } catch (e) {
+            debugerr("Error terminating peer", e);
+        }
+        try {
+            this.peer = undefined;
+            this.prepare();
+        } catch (e) {
+            debugerr("Error reconnecting peer", e);
+        }
+        return true;
+    }
+
     connectKnownPeers(knownPeers) {
         knownPeers = knownPeers ?? [...this.knownPeers];
         knownPeers?.forEach((peerid) => this.connect(peerid, (conn) => {
@@ -149,10 +174,17 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
     }
 
     monitorKnownPeers() {
-        setTimeout(() => {      // do this first, if any of the following
-            this.monitorKnownPeers();
-        }, RECONNECT_INTERVAL);
         try {
+            if (this.maintainPeer()) {
+                // the peer restarts, monitorKnownPeers loop will also be restarted
+                if (this._maintaintimeoutid) clearTimeout(this._maintaintimeoutid);
+                return;
+            }
+
+            this._maintaintimeoutid = setTimeout(() => {
+                this.monitorKnownPeers();
+            }, RECONNECT_INTERVAL);
+
             this.maintainAllPeerConnections();
             const knownPeers = this.knownPeers;
             const peerconns  = this.peer.connections ?? [];

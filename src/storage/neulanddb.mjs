@@ -13,6 +13,8 @@ let storage;
 const debuglog = (...args) => {}; // console.log("NeulandDB", Date.now(), ":", ...args);
 const debugerr = (...args) => console.error("NeulandDB", Date.now(), ":", ...args);
 
+const TEN_MIN = 10 * 60 * 1000;
+const NEULAND_STORAGE_OPT = { store: 'data', name: 'neuland', backup: TEN_MIN, maxmod: 100 }
 
 export default class NeulandDB {
 
@@ -20,10 +22,12 @@ export default class NeulandDB {
         this.mod       = 0;
         WRITE_COUNT    = storageOpt.writeCount ?? WRITE_COUNT;
         WRITE_INTERVAL = storageOpt.writeInterval ?? WRITE_INTERVAL;
+        this.opt = { ...NEULAND_STORAGE_OPT, ...storageOpt };
         debuglog("init storage start");
         storage        = this.storage = new StorageAdapter();
-        storage.init(storageOpt);
+        storage.init(this.opt);
         universe.$neuland = this;
+        this.lastbackup = universe.inow;
         debuglog("init storage done");
         return this;
     }
@@ -59,7 +63,9 @@ export default class NeulandDB {
             if (this.mod > 0) {
                 this.mod = 0;
                 debuglog("storage store");
-                storage.store();
+                const backup = this.lastbackup + this.opt.backup > universe.inow;
+                storage.store(backup);
+                if (backup) this.lastbackup = universe.inow;
             }
             this.auto();
         }, WRITE_INTERVAL);
@@ -68,9 +74,11 @@ export default class NeulandDB {
     modified() {
         const mod = ++this.mod;
         if (mod < WRITE_COUNT) return this;
+        const backup = mod > this.opt.maxmod;
         this.mod = 0;
         debuglog("storage store");
-        storage.store();
+        storage.store(backup);
+        if (backup) this.lastbackup = universe.inow;
     }
 
     //

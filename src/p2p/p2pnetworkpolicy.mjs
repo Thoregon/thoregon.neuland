@@ -21,6 +21,7 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
         // this.peers4souls = new Map();  // sync peer connections for a soul
         super.init();
         this._awareQ = [];
+        this.isrelay = universe.netconfig.p2p.relay ?? false;
     }
 
     //
@@ -98,7 +99,7 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
         const { soul, source } = data;
         if (this.isOwnAdapter(source)) return;  // was my own request, don't dispatch again
         // send to know peers except the requester
-        this.dispatchDiscover(data, conn);
+        if (this.isrelay) this.dispatchDiscover(data, conn);
         // check if I have the requested resource id
         if (this.isResponsible(soul)) this.sendAware(data, adapter); // await this.connectSyncResource(data, conn);
     }

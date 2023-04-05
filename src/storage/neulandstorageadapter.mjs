@@ -24,7 +24,7 @@ export default class NeulandStorageAdapter {
         // implement by subclass
     }
 
-    async store() {
+    async store(backup = false) {
         // implement by subclass
     }
 

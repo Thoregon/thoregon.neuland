@@ -125,8 +125,10 @@ export default class ChannelRelayAdapter extends NetworkAdapter {
         this.send2Relay('broadcast', req, exceptconn);
     }
 
-    send(otherPeerId, req) {
+    send(otherPeerId, req, cb) {
+        const conn = { id: 1, peer: otherPeerId };
         this.send2Relay('send', req, otherPeerId);
+        cb?.(conn);
     }
 
 

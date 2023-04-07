@@ -6,7 +6,7 @@
  * @see: {@link https://github.com/Thoregon}
  */
 
-const debuglog2 = (...args) => console.log("SyncDriver", universe.inow, ":", ...args); // console.log("SyncDriver", universe.inow, ":", ...args); //  {};
+const debuglog2 = (...args) => {}; // console.log("SyncDriver", universe.inow, ":", ...args); //  {};
 
 export default class SyncDriverMerge {
 

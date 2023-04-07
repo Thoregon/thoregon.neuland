@@ -130,7 +130,14 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
         const req = { ...data, cmd };
         const adapter = this.net.find((adapter) => adapter.isApplicable(peerid));
         if (!adapter) return false;
+        // todo: increment running syncs for this peer
         adapter.send(peerid, req);
+    }
+
+    syncFinished(peerid) {
+        // todo:
+        //  - decrement running syncs for this peer
+        //  - check if no syncs and no mq is open -> close connection(s) to this peer
     }
 
     processAware(data, conn, adapter) {
@@ -184,6 +191,16 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
         if (!resourceHandler) return;
         const peerid = conn.peer;
         resourceHandler.result(data, this, peerid);
+    }
+
+    mqOpen(peerid) {
+        // todo: increment open mq for this peer
+    }
+
+    mqFinished(peerid) {
+        // todo:
+        //  - decrement open mq's for this peer
+        //  - check if no syncs and no mq is open -> close connection(s) to this peer
     }
 
 }

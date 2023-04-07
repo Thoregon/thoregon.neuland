@@ -90,7 +90,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
                 try {
                     if (peer.destroyed) {
                         if (this._maintaintimeoutid) clearTimeout(this._maintaintimeoutid);
-                        this.prepare();
+                        this.maintainPeer(true);
                     } else {
                         this.peer.reconnect();
                     }
@@ -98,13 +98,20 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
             });
 
             peer.on('error', (err) => {
-                if (err.type === 'peer-unavailable') {
-                    const message     = err.message;
-                    const i           = message.lastIndexOf(' ') + 1;
-                    const otherPeerId = message.substring(i);
-                    setTimeout(() => this.reconnectConnection(otherPeerId), RECONNECT_INTERVAL);
-                } else {
-                    debugerr('peer error', err.message);
+                switch (err.type) {
+                    case 'peer-unavailable':
+                        const message     = err.message;
+                        const i           = message.lastIndexOf(' ') + 1;
+                        const otherPeerId = message.substring(i);
+                        setTimeout(() => this.reconnectConnection(otherPeerId), RECONNECT_INTERVAL);
+                        break;
+                    case 'unavailable-id':
+                        if (this._maintaintimeoutid) clearTimeout(this._maintaintimeoutid);
+                        this.maintainPeer(true);
+                        break;
+                    default:
+                        debugerr('peer error', err.message);
+                        break;
                 }
             });
 
@@ -145,8 +152,8 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
     // management
     //
 
-    maintainPeer() {
-        if (this.peer?.open) return false;
+    maintainPeer(force = false) {
+        if (!force && this.peer?.open) return false;
         try {
             const peer = this.peer;
             if (peer) {

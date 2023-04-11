@@ -6,6 +6,9 @@
  * @see: {@link https://github.com/Thoregon}
  */
 
+const WAIT_SYNC_DELAY     = 100000;
+const USE_WATCHDOG        = true;
+
 const debuglog2 = (...args) => {}; // console.log("SyncDriver", universe.inow, ":", ...args); //  {};
 
 export default class SyncDriverMerge {
@@ -46,19 +49,28 @@ export default class SyncDriverMerge {
         const msg     = universe.Automerge.save(this.entity);
         debuglog2("drive", this.peerid);
         this.sendSync({ soul, msg }, policy);
+        if (USE_WATCHDOG) {
+            if (this.synctimeoutid) clearTimeout(this.synctimeoutid);
+            this.synctimeoutid = setTimeout(() => this.cancel(), WAIT_SYNC_DELAY);
+        }
         // this.syncFinished();
     }
 
-    sendSync({ soul, msg }, policy, finished) {
+    sendSync({ soul, msg }, policy) {
         debuglog2("sendSync", soul, this.peerid);
         const cmd = this.incomming ? 'syncOut' : 'syncIn';
         const wasSent = policy.sendSync(cmd, { soul, msg }, this.peerid);
     }
 
     sync({ soul, msg }, peerid) {
+        if (this.isCanceled) return;
         const bin = new Uint8Array(msg);
-        const doc = universe.Automerge.load(bin);
-        this.entity = doc;
+        try {
+            const doc   = universe.Automerge.load(bin);
+            this.entity = doc;
+        } catch (e) {
+            console.log("AM can't load binary", e);
+        }
         this.syncFinished();
     }
 

@@ -13,8 +13,10 @@ let storage;
 const debuglog = (...args) => {}; // console.log("NeulandDB", Date.now(), ":", ...args);
 const debugerr = (...args) => console.error("NeulandDB", Date.now(), ":", ...args);
 
-const TEN_MIN = 10 * 60 * 1000;
-const NEULAND_STORAGE_OPT = { store: 'data', name: 'neuland', backup: TEN_MIN, maxmod: 100 }
+const TEN_MIN             = 10 * 60 * 1000;
+const ONE_HOUR            = 60 * 60 * 1000;
+const NEULAND_STORAGE_OPT = { store: 'data', name: 'neuland', backup: ONE_HOUR, maxmod: 1000 }
+const USE_BACKUP          = false;
 
 export default class NeulandDB {
 
@@ -63,7 +65,7 @@ export default class NeulandDB {
             if (this.mod > 0) {
                 this.mod = 0;
                 debuglog("storage store");
-                const backup = this.lastbackup + this.opt.backup > universe.inow;
+                const backup = USE_BACKUP && (this.lastbackup + this.opt.backup > universe.inow);
                 storage.store(backup);
                 if (backup) this.lastbackup = universe.inow;
             }

@@ -6,6 +6,11 @@
  * @see: {@link https://github.com/Thoregon}
  */
 
+const MAX_SYNC_ITERATIONS = 10;
+const WAIT_SYNC_DELAY     = 100000;
+
+const USE_WATCHDOG        = true;
+
 const debuglog2 = (...args) => {}; // console.log("SyncDriver", universe.inow, ":", ...args); //  {};
 
 export default class SyncDriverMsg {

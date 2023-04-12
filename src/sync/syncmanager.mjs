@@ -173,7 +173,6 @@ export default class SyncManager extends ResourceHandler {
         if (policy) return policy.sendDiscover(req, opt);
         policies.forEach((policy) => policy.sendDiscover(req, opt));
         debuglog("discover", soul);
-        console.log(">> discover", soul);
     }
 
     rediscover(policy, opt) {
@@ -229,13 +228,13 @@ class DiscoverQ {
         const fn = ((args) => () => this.doDiscover(args))(what);
         const pending4soul = { what, fn, timeout: setTimeout(fn, DISCOVER_DELAY) };
         this.pending.set(soul, pending4soul);
-        console.log(">> discover delay", soul);
+        debuglog("discover delay", soul);
     }
 
     shift(pending4soul, soul, entity, policy, opt) {
         const { fn, timeout } = pending4soul;
         clearTimeout(timeout);
         pending4soul.timeout = setTimeout(fn, DISCOVER_SHIFT);
-        console.log(">> discover shift", soul);
+        debuglog("discover shift", soul);
     }
 }

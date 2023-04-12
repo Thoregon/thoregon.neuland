@@ -15,7 +15,7 @@ export default class SyncDriverMerge {
 
     constructor(soul, entity) {
         this.soul   = soul;
-        this.entity = entity;   // no clone needed!
+        // this.entity = entity;   // no clone needed!
         // this.entity = universe.Automerge.clone(entity);    // need a separate document for automerge
     }
 
@@ -46,7 +46,12 @@ export default class SyncDriverMerge {
     drive() {
         const soul    = this.soul;
         const policy  = this.policy;
-        const msg     = universe.Automerge.save(this.entity);
+        const bin     = this.syncmgr.getAMBin(soul);
+        if (!bin) {
+            this.cancel();
+            return;
+        }
+        const msg     = bin.buffer;
         debuglog2("drive", this.peerid);
         this.sendSync({ soul, msg }, policy);
         if (USE_WATCHDOG) {
@@ -69,7 +74,8 @@ export default class SyncDriverMerge {
             const doc   = universe.Automerge.load(bin);
             this.entity = doc;
         } catch (e) {
-            console.log("AM can't load binary", e);
+            this.tainted = true;
+            console.log("AM can't load binary", soul, e);
         }
         this.syncFinished();
     }

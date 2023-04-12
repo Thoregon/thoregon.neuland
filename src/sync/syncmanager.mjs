@@ -10,8 +10,9 @@
  * @see: {@link https://github.com/Thoregon}
  */
 
-import ResourceHandler from "../resource/resourcehandler.mjs";
-import Driver          from "./syncdrivermerge.mjs";
+import ResourceHandler   from "../resource/resourcehandler.mjs";
+import Driver            from "./syncdrivermerge.mjs";
+import ThoregonDecorator from "/thoregon.archetim/lib/thoregondecorator.mjs";
 
 // import Driver         from "./syncdrivermsg.mjs";
 
@@ -110,7 +111,20 @@ export default class SyncManager extends ResourceHandler {
         this.syncFinished(driver, this.syncOutQ);
     }
 
-    syncFinished(driver, Q) {
+    syncFinished(driver, Q, out) {
+        const soul = driver.soul;
+        const peerid = driver.peerid;
+        const itemkey = `${peerid}.${soul}`;
+        delete Q[itemkey];
+        if (driver.isCanceled) return;
+        try {
+            this.emitResourceChanged(soul, driver.entity);
+        } catch (e) {
+            debuglog("Can't merge", curentity, driver.entity);
+        }
+    }
+
+    syncFinished_(driver, Q, out) {
         const soul = driver.soul;
         const peerid = driver.peerid;
         const itemkey = `${peerid}.${soul}`;
@@ -127,8 +141,8 @@ export default class SyncManager extends ResourceHandler {
         }
     }
 
-    emitResourceChanged(soul) {
-        const { resource, listener } = this.getResourceEntry(soul);
+    emitResourceChanged(soul, resource) {
+        const { listener } = this.getResourceEntry(soul);
         try { listener?.(soul, resource) } catch (e) { debuglog("ERROR, resource sync listener", e) };
     }
 
@@ -182,6 +196,24 @@ export default class SyncManager extends ResourceHandler {
         const knownSouls = this.knownSouls;
         debuglog("rediscover");
         knownSouls.forEach((entity, soul) => this._discover(soul, entity, policy, opt));
+    }
+
+    //
+    // resources
+    //
+
+    getAMDoc(soul) {
+        const entity = ThoregonDecorator.getKnownEntity(soul);
+        if (!entity) return;
+        const amdoc = entity.$amdocsafe();
+        return amdoc;
+    }
+
+    getAMBin(soul) {
+        const entity = ThoregonDecorator.getKnownEntity(soul);
+        if (!entity) return;
+        const amdoc = entity.$ambinsafe();
+        return amdoc;
     }
 }
 

@@ -13,25 +13,24 @@
 import ResourceHandler   from "../resource/resourcehandler.mjs";
 import Driver            from "./syncdrivermerge.mjs";
 import ThoregonDecorator from "/thoregon.archetim/lib/thoregondecorator.mjs";
+import policy            from "../../../thoregon.truCloud/lib/application/policy.mjs";
 
 // import Driver         from "./syncdrivermsg.mjs";
 
 const debuglog = (...args) => {}; // console.log("Sync", universe.inow, ":", ...args);   //  {};
 const debuglog2 = (...args) => {}; // console.log("SyncDriver", universe.inow, ":", ...args); //  {};
 
-const MAX_SYNC_ITERATIONS = 10;
-const DISCOVER_DELAY      = 50;
-const WAIT_SYNC_DELAY     = 100000;
-
-const USE_WATCHDOG        = true;
+const DISCOVER_DELAY = 120;
+const DISCOVER_SHIFT = 100;
 
 export default class SyncManager extends ResourceHandler {
 
     constructor(opt) {
         super(opt);
-        this.opt      = opt;
-        this.syncInQ  = {};
-        this.syncOutQ = {};
+        this.opt       = opt;
+        this.syncInQ   = {};
+        this.syncOutQ  = {};
+        this.discoverQ = new DiscoverQ(this);
     }
 
     static setup() {
@@ -163,39 +162,25 @@ export default class SyncManager extends ResourceHandler {
         // - with the credential (in opt) encrypt and sing the request
         // - add a challenge the responder must resolve (?)
         if (entity != undefined) this.setResource(soul, entity, listener);
-        this._discover(soul, entity, opt);
+        const policy = undefined;   // todo if needed
+        this.discoverQ.discover(soul, entity, policy, opt);
+        // this._discover(soul, entity, opt);
     }
 
-    _discover(soul, entity, policy, opt) {
+    _discover({ soul, policy, opt } = {}) {
         const policies = this.net;
-        const req = {  soul };  // todo [OPEN]: need credential
-
-        let discoverQ = this._discoverQ;
-        if (!discoverQ) discoverQ = this._discoverQ = [];
-        discoverQ.push(((policy, req, opt) => (() => {
-            if (policy) return policy.sendDiscover(req, opt);
-            policies.forEach((policy) => policy.sendDiscover(req, opt));
-        }))(policy, req, opt));
-
-        if (this._discoverWaitId) clearTimeout(this._discoverWaitId);
-
+        const req = { soul };  // todo [OPEN]: need credential
+        if (policy) return policy.sendDiscover(req, opt);
+        policies.forEach((policy) => policy.sendDiscover(req, opt));
         debuglog("discover", soul);
-
-        this._discoverWaitId = setTimeout(() => {
-            let discoverQ = this._discoverQ;
-            if (!discoverQ) return;
-            let fn;
-            while (fn = discoverQ.shift()) {
-                fn();
-            }
-        }, DISCOVER_DELAY);
+        console.log(">> discover", soul);
     }
 
     rediscover(policy, opt) {
         if (!policy.canDiscover()) return;
         const knownSouls = this.knownSouls;
         debuglog("rediscover");
-        knownSouls.forEach((entity, soul) => this._discover(soul, entity, policy, opt));
+        [...knownSouls.keys()].forEach((soul) => this.discover(soul, undefined, opt));
     }
 
     //
@@ -217,3 +202,40 @@ export default class SyncManager extends ResourceHandler {
     }
 }
 
+class DiscoverQ {
+
+    constructor(sync) {
+        this.sync = sync;
+        this.pending = new Map();
+    }
+
+    discover(soul, entity, policy, opt) {
+        const pending4soul = this.pending.get(soul);
+        if (pending4soul) {
+            this.shift(pending4soul, soul, entity, policy, opt);
+        } else {
+            this.delay(soul, entity, policy, opt);
+        }
+    }
+
+    doDiscover(what) {
+        const soul = what.soul;
+        this.pending.delete(soul);
+        this.sync._discover(what);
+    }
+
+    delay(soul, entity, policy, opt) {
+        const what = { soul, entity, policy, opt };
+        const fn = ((args) => () => this.doDiscover(args))(what);
+        const pending4soul = { what, fn, timeout: setTimeout(fn, DISCOVER_DELAY) };
+        this.pending.set(soul, pending4soul);
+        console.log(">> discover delay", soul);
+    }
+
+    shift(pending4soul, soul, entity, policy, opt) {
+        const { fn, timeout } = pending4soul;
+        clearTimeout(timeout);
+        pending4soul.timeout = setTimeout(fn, DISCOVER_SHIFT);
+        console.log(">> discover shift", soul);
+    }
+}

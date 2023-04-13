@@ -32,8 +32,9 @@ export default class MQ extends ResourceHandler {
     // resource handler
     //
 
-    isResponsible(soul) {
-        return this.producers.has(soul) || this.consumers.has(soul);
+    isResponsible(soul, data) {
+        const { cmd } = data;
+        return this.producers.has(soul) || (cmd !== 'discover' && this.consumers.has(soul));
     }
 
     //

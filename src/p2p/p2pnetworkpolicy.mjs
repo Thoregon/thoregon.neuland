@@ -101,7 +101,7 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
         // send to know peers except the requester
         if (this.isrelay) this.dispatchDiscover(data, conn);
         // check if I have the requested resource id
-        if (this.isResponsible(soul)) this.sendAware(data, adapter); // await this.connectSyncResource(data, conn);
+        if (this.isResponsible(soul, data)) this.sendAware(data, adapter); // await this.connectSyncResource(data, conn);
     }
 
     dispatchDiscover(data, from) {
@@ -121,7 +121,7 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
         const req             = { ...data, cmd: 'aware' };
         const sourcepeerid    = data.source;
         const soul            = data.soul;
-        const resourceHandler = this.getResponsibleResourceHandler(soul);
+        const resourceHandler = this.getResponsibleResourceHandler(soul, data);
         if (!resourceHandler) return;
         adapter.send(sourcepeerid, req, () => resourceHandler.awareOut(data, this, sourcepeerid));
     }
@@ -142,7 +142,7 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
 
     processAware(data, conn, adapter) {
         const { soul } = data;
-        const resourceHandler = this.getResponsibleResourceHandler(soul);
+        const resourceHandler = this.getResponsibleResourceHandler(soul, data);
         if (!resourceHandler) return;
         const peerid = conn.peer;
         resourceHandler.awareIn(data, this, peerid);
@@ -150,7 +150,7 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
 
     processSync(incomming, data, conn, adapter) {
         const { soul } = data;
-        const resourceHandler = this.getResponsibleResourceHandler(soul);
+        const resourceHandler = this.getResponsibleResourceHandler(soul, data);
         if (!resourceHandler) return;
         const peerid = conn.peer;
         // this.addPeer4Soul(soul, { adapter, peerid });
@@ -179,7 +179,7 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
 
     processInvoke(data, conn, adapter) {
         const { soul } = data;
-        const resourceHandler = this.getResponsibleResourceHandler(soul);
+        const resourceHandler = this.getResponsibleResourceHandler(soul, data);
         if (!resourceHandler) return;
         const peerid = conn.peer;
         resourceHandler.invoke(data, this, peerid);
@@ -187,7 +187,7 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
 
     processResult(data, conn, adapter) {
         const { soul } = data;
-        const resourceHandler = this.getResponsibleResourceHandler(soul);
+        const resourceHandler = this.getResponsibleResourceHandler(soul, data);
         if (!resourceHandler) return;
         const peerid = conn.peer;
         resourceHandler.result(data, this, peerid);

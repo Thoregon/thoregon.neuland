@@ -159,13 +159,13 @@ export default class NetworkPolicy {
         this.resourcehandlers = this.resourcehandlers.filter((reghandler) => reghandler != handler);
     }
 
-    getResponsibleResourceHandler(soul) {
-        const handler = this.resourcehandlers.find((handler) => handler.isResponsible?.(soul));
+    getResponsibleResourceHandler(soul, data) {
+        const handler = this.resourcehandlers.find((handler) => handler.isResponsible?.(soul, data));
         return handler;
     }
 
-    isResponsible(soul) {
-        const handler = this.getResponsibleResourceHandler(soul);
+    isResponsible(soul, data) {
+        const handler = this.getResponsibleResourceHandler(soul, data);
         return handler != undefined;
     }
 

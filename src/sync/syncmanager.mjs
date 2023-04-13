@@ -123,23 +123,6 @@ export default class SyncManager extends ResourceHandler {
         }
     }
 
-    syncFinished_(driver, Q, out) {
-        const soul = driver.soul;
-        const peerid = driver.peerid;
-        const itemkey = `${peerid}.${soul}`;
-        delete Q[itemkey];
-        if (driver.isCanceled) return;
-        let curentity = this.getResource(soul);
-        try {
-            if (curentity === driver.entity) return;    // no merge, same object
-            const entity = curentity ? universe.Automerge.merge(curentity, driver.entity) : driver.entity; // there may be syncs in between, so merge it
-            this.setResource(soul, entity); // Automerge entities are immutable, this is a modified one -> replace it
-            this.emitResourceChanged(soul);
-        } catch (e) {
-            debuglog("Can't merge", curentity, driver.entity);
-        }
-    }
-
     emitResourceChanged(soul, resource) {
         const { listener } = this.getResourceEntry(soul);
         try { listener?.(soul, resource) } catch (e) { debuglog("ERROR, resource sync listener", e) };

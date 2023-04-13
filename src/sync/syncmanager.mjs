@@ -93,7 +93,7 @@ export default class SyncManager extends ResourceHandler {
         const { soul } = data;
         const itemkey = `${peerid}.${soul}`;
         let driver  = this.syncOutQ[itemkey];
-        if (!driver) return;
+        if (!driver) driver = this.syncOutQ[itemkey] = Driver.outgoing(this, soul, undefined, policy, peerid);
         driver.sync(data, policy, peerid);
     }
 

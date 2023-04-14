@@ -12,11 +12,12 @@
  */
 import NetworkAdapter from "../network/networkadapter.mjs";
 
-const HEARTBEAT              = false;
-const TRIBE_PREFIX           = 'PeerJS-';
-const HEARTBEAT_INTERVAL     = 3000;
-const RECONNECT_INTERVAL     = 3000;
-const RETRY_CONNECT_INTERVAL = 300;
+const HEARTBEAT               = false;
+const TRIBE_PREFIX            = 'PeerJS-';
+const HEARTBEAT_INTERVAL      = 3000;
+const RECONNECT_INTERVAL      = 3000;
+const RETRY_CONNECT_INTERVAL  = 300;
+const PEER_RECONNECT_INTERVAL = 1000;
 
 // simulated import. will be set when the instance is created
 let Peer;
@@ -107,10 +108,11 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
                         break;
                     case 'unavailable-id':
                         if (this._maintaintimeoutid) clearTimeout(this._maintaintimeoutid);
-                        this.maintainPeer(true);
+                        delete this.peerid;
+                        setTimeout(() => this.maintainPeer(true), PEER_RECONNECT_INTERVAL);
                         break;
                     default:
-                        debugerr('peer error', err.message);
+                        debugerr('peer error', err.type, err.message);
                         break;
                 }
             });

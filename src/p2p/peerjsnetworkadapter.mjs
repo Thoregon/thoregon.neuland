@@ -110,7 +110,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
                         this.maintainPeer(true);
                         break;
                     default:
-                        debugerr('peer error', err.type, err.message);
+                        debugerr('peer error', err.message);
                         break;
                 }
             });

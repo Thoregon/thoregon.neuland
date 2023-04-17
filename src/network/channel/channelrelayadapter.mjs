@@ -11,7 +11,7 @@ import NetworkAdapter from "../networkadapter.mjs";
 const debuglog = (...args) => {}; // console.log("$$ ChannelRelayAdapter", universe.inow, ":", ...args); // console.log("P2PNetworkPolicy", universe.inow, ":", ...args);  // {}
 const debugerr = (...args) => console.error("$$ ChannelRelayAdapter", universe.inow, ":", ...args);
 
-const TRIBE_PREFIX = 'PeerJS-';
+const TRIBE_PREFIX = 'ChannelRelay-';
 
 export default class ChannelRelayAdapter extends NetworkAdapter {
 
@@ -24,6 +24,10 @@ export default class ChannelRelayAdapter extends NetworkAdapter {
         this.receivedRequests = new Map();  // during uptime received requests over all adapters
         this.setupRelay();
         debuglog("created");
+    }
+
+    static newPeerid() {
+        return `${TRIBE_PREFIX}${universe.netconfig?.peerid ?? universe.random()}`;
     }
 
     sameTribe(peerid) {

@@ -8,14 +8,24 @@
  * @see: {@link https://github.com/Thoregon}
  */
 
+import { ErrNotImplemented } from "../errors.mjs";
+
 const debuglog = (...args) => console.log("NetworkAdapter", Date.now(), ":", ...args);
 
 export default class NetworkAdapter {
 
     constructor(peerid, policy) {
-        this.peerid = peerid;
+        this.peerid = peerid ?? this.newPeerid();
         this.policy = policy;
         this.Q = new Map();
+    }
+
+    static newPeerid() {
+        throw ErrNotImplemented("(NetworkAdapter) -> newPeerid");
+    }
+
+    newPeerid() {
+        return this.constructor.newPeerid();
     }
 
     isApplicable(peerid) {

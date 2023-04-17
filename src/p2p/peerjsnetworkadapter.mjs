@@ -32,11 +32,14 @@ const isConnOpen = (conn) => conn?.open && conn?.peerConnection.connectionState 
 export default class PeerJSNetworkAdapter extends NetworkAdapter {
 
     constructor(policy) {
-        const peerid = `${TRIBE_PREFIX}${universe.netconfig?.peerid ?? universe.random()}`;
-        super(peerid, policy);
+        super(undefined, policy);
         this.knownPeers = universe.netconfig.p2p.knownPeers;
         Peer            = universe.Peer;
         this._onopen    = [];
+    }
+
+    static newPeerid() {
+        return `${TRIBE_PREFIX}${universe.netconfig?.peerid ?? universe.random()}`;
     }
 
     sameTribe(peerid) {
@@ -108,7 +111,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
                         break;
                     case 'unavailable-id':
                         if (this._maintaintimeoutid) clearTimeout(this._maintaintimeoutid);
-                        delete this.peerid;
+                        this.peerid = newPeerid();
                         setTimeout(() => this.maintainPeer(true), PEER_RECONNECT_INTERVAL);
                         break;
                     default:

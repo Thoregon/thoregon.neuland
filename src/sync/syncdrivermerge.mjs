@@ -13,25 +13,25 @@ const debuglog2 = (...args) => {}; // console.log("SyncDriver", universe.inow, "
 
 export default class SyncDriverMerge {
 
-    constructor(soul, entity) {
+    constructor(soul/*, entity*/) {
         this.soul   = soul;
         // this.entity = entity;   // no clone needed!
         // this.entity = universe.Automerge.clone(entity);    // need a separate document for automerge
     }
 
 
-    static outgoing(syncmgr, soul, entity, policy, peerid) {
+    static outgoing(syncmgr, soul/*, entity*/, policy, peerid) {
         debuglog2("outgoing", peerid);
-        const driver     = new this(soul, entity);
+        const driver     = new this(soul/*, entity*/);
         driver.incomming = false;
         driver.syncmgr   = syncmgr;
         driver.setup(policy, peerid);
         return driver;
     }
 
-    static incomming(syncmgr, soul, entity, policy, peerid) {
+    static incomming(syncmgr, soul/*, entity*/, policy, peerid) {
         debuglog2("incomming", peerid);
-        const driver     = new this(soul, entity);
+        const driver     = new this(soul/*, entity*/);
         driver.incomming = true;
         driver.syncmgr   = syncmgr;
         driver.setup(policy, peerid);

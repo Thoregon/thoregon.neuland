@@ -83,6 +83,11 @@ export default class NeulandDB {
         if (backup) this.lastbackup = universe.inow;
     }
 
+    keys() {
+        // return known (persistent) keys
+        return storage.keys();
+    }
+
     //
     // items
     //

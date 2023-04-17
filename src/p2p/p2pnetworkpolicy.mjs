@@ -47,6 +47,11 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
         this.net?.forEach((adapter) => adapter.exit());
     }
 
+    addResourceHandler(handler, ) {
+        super.addResourceHandler(handler);
+        handler.isrelay = this.isrelay;
+    }
+
     //
     // loop control
     //
@@ -84,6 +89,15 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
             case 'result':
                 this.processResult(data, conn, adapter);
                 break;
+            case 'entities':
+                this.processEntities(data, conn, adapter);
+                break;
+            case 'missingentities':
+                this.processMissingEntities(data, conn, adapter);
+                break;
+            case 'useentities':
+                this.processUseEntities(data);
+                break;
             default:
                 super.received(data, conn, adapter);
                 break;
@@ -111,6 +125,51 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
     calcChallengeResponse(soul, challenge) {
         // hash, encrypt and sign
         return "challenge_response";
+    }
+
+    sendEntities(data) {
+        const req = { ...data, cmd: 'entities' };
+        this.net.forEach((adapter) => {
+            const knownPeers = adapter.knownPeers;
+            knownPeers.forEach((peerid) => adapter.send(peerid, req));
+        });
+    }
+
+    processEntities(data, conn, adapter) {
+        debuglog("processEntities", data);
+        const resourceHandler = this.getResponsibleResourceHandler(undefined, data);
+        if (!resourceHandler) return;
+        resourceHandler.otherEntities(this, conn.peer, data.knownSouls);
+    }
+
+    sendMissingEntities(peerid, missing) {
+        const req = { cmd: 'missingentities', missing };
+        const adapter = this.net.find((adapter) => adapter.isApplicable(peerid));
+        if (!adapter) return false;
+        // todo: increment running syncs for this peer
+        adapter.send(peerid, req);
+    }
+
+    processMissingEntities(data, conn, adapter) {
+        debuglog("processMissingEntities", data);
+        const resourceHandler = this.getResponsibleResourceHandler(undefined, data);
+        if (!resourceHandler) return;
+        resourceHandler.missingEntities(this, conn.peer, data.missing);
+    }
+
+    sendUseEntities(peerid, entities) {
+        const req = { cmd: 'useentities', entities };
+        const adapter = this.net.find((adapter) => adapter.isApplicable(peerid));
+        if (!adapter) return false;
+        // todo: increment running syncs for this peer
+        adapter.send(peerid, req);
+    }
+
+    processUseEntities(data) {
+        debuglog("processUseEntities", data);
+        const resourceHandler = this.getResponsibleResourceHandler(undefined, data);
+        if (!resourceHandler) return;
+        resourceHandler.useEntities(data.entities);
     }
 
     //

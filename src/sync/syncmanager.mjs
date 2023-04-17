@@ -23,6 +23,8 @@ const debuglog2 = (...args) => {}; // console.log("SyncDriver", universe.inow, "
 const DISCOVER_DELAY = 120;
 const DISCOVER_SHIFT = 100;
 
+const DB   = () => universe.neuland;
+
 export default class SyncManager extends ResourceHandler {
 
     constructor(opt) {
@@ -47,9 +49,19 @@ export default class SyncManager extends ResourceHandler {
         this.rediscover(policy);
     }
 
+    discoverAvailable(policy) {
+        this.rediscover(policy);
+    }
+
     //
     // sync
     //
+    isResponsible(soul, data) {
+        if (!data) return this.knownSouls.has(soul);
+        const { cmd } = data;
+        return cmd === 'entities' || cmd === 'missingentities' || cmd == 'useentities' || this.knownSouls.has(soul);
+    }
+
     awareOut(data, policy, peerid) {
         // need only a driver on this side
         const { soul } = data;
@@ -58,7 +70,7 @@ export default class SyncManager extends ResourceHandler {
         if (!entity) return;
         let driver = this.syncOutQ[itemkey];
         if (driver) driver.cancel(); // running but outdated
-        driver = this.syncOutQ[itemkey] = Driver.outgoing(this, soul, entity, policy, peerid);
+        driver = this.syncOutQ[itemkey] = Driver.outgoing(this, soul/*, entity*/, policy, peerid);
         driver.drive();
     }
 
@@ -77,7 +89,7 @@ export default class SyncManager extends ResourceHandler {
         if (!entity) return;
         let driver  = this.syncInQ[itemkey];
         if (driver)  driver.cancel(); // running but outdated
-        driver = this.syncInQ[itemkey] = Driver.incomming(this, soul, entity, policy, peerid);
+        driver = this.syncInQ[itemkey] = Driver.incomming(this, soul/*, entity*/, policy, peerid);
         driver.drive();
     }
 
@@ -123,9 +135,19 @@ export default class SyncManager extends ResourceHandler {
         }
     }
 
-    emitResourceChanged(soul, resource) {
+    emitResourceChanged(soul, amdoc) {
         const { listener } = this.getResourceEntry(soul);
-        try { listener?.(soul, resource) } catch (e) { debuglog("ERROR, resource sync listener", e) };
+        try { listener?.(soul, amdoc) } catch (e) { debuglog("ERROR, resource sync listener", e) };
+/*
+        if (this.isrelay && !listener) {
+            try {
+                const bin   = Automerge.save(amdoc);
+                DB().set(soul, bin);
+            } catch (e) {
+                debuglog("emitResourceChanged: can't store", e);
+            }
+        }
+*/
     }
 
     //
@@ -160,9 +182,38 @@ export default class SyncManager extends ResourceHandler {
 
     rediscover(policy, opt) {
         if (!policy.canDiscover()) return;
-        const knownSouls = this.knownSouls;
+        if (this.isrelay) return;
+        const knownSouls = [...DB().keys()]; // this.knownSouls.keys();
         debuglog("rediscover");
-        [...knownSouls.keys()].forEach((soul) => this.discover(soul, undefined, opt));
+        this.entities(policy, knownSouls);
+        // [...knownSouls].forEach((soul) => this.discover(soul, undefined, opt));
+    }
+
+    entities(policy, knownSouls, opt) {
+        const req = { knownSouls };
+        policy.sendEntities(req, opt);
+    }
+
+    otherEntities(policy, peerid, knownSouls) {
+        const missing = knownSouls.filter(soul => !DB().has(soul));
+        debuglog("otherEntities", missing);
+        policy.sendMissingEntities(peerid, missing);
+    }
+
+    missingEntities(policy, peerid, missing) {
+        const entites = {};
+        missing.forEach(soul => entites[soul] = DB().get(soul));
+        policy.sendUseEntities(peerid, entites);
+    }
+
+    useEntities(entities) {
+        debuglog("useEntities");
+        Object.entries(entities).forEach(([soul, buf]) => {
+            if (!DB().has(soul)) {
+                const bin = new Uint8Array(buf);
+                DB().set(soul, bin);
+            }
+        });
     }
 
     //

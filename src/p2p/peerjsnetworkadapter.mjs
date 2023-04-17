@@ -111,7 +111,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
                         break;
                     case 'unavailable-id':
                         if (this._maintaintimeoutid) clearTimeout(this._maintaintimeoutid);
-                        this.peerid = newPeerid();
+                        this.peerid = this.newPeerid();
                         setTimeout(() => this.maintainPeer(true), PEER_RECONNECT_INTERVAL);
                         break;
                     default:
@@ -295,6 +295,8 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
                 // debuglog('Received', data);
                 this.process(data, conn);
             });
+            this.reconnectConnection(otherPeerId);
+            // this.connOpened()
             onopen?.(conn);
         });
 

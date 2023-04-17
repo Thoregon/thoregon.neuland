@@ -131,7 +131,7 @@ export default class P2PNetworkPolicy extends NetworkPolicy {
         const req = { ...data, cmd: 'entities' };
         this.net.forEach((adapter) => {
             const knownPeers = adapter.knownPeers;
-            knownPeers.forEach((peerid) => adapter.send(peerid, req));
+            knownPeers?.forEach((peerid) => adapter.send(peerid, req));
         });
     }
 

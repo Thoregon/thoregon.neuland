@@ -56,7 +56,8 @@ export default class ChannelRelayAdapter extends NetworkAdapter {
         switch (cmd) {
             case 'relayReady':
                 this._relayready = true;
-                this.peerid = req.peerid;
+                this.peerid      = req.peerid;
+                this.knownPeers  = req.knownPeers;
                 this._onopen?.(this);
                 break;
             case 'connectionEstablished':
@@ -67,9 +68,6 @@ export default class ChannelRelayAdapter extends NetworkAdapter {
                 break;
             case 'received':
                 this.received(subreq, conn, this);
-                break;
-            case 'knownPeers':
-                this.knownPeers = req.knownPeers;
                 break;
         }
     }

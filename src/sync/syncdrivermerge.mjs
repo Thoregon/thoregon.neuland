@@ -83,7 +83,7 @@ export default class SyncDriverMerge {
     syncFinished() {
         debuglog2("syncFinished");
         // this.policy.closePeerConnection(this.peerid);
-        this.policy.syncFinished(this.peerid);
+        this.policy?.syncFinished(this.peerid);
         if (this.incomming) {
             this.syncmgr.syncInFinished(this);
         } else {

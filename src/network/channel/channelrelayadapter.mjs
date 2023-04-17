@@ -67,6 +67,10 @@ export default class ChannelRelayAdapter extends NetworkAdapter {
                 break;
             case 'received':
                 this.received(subreq, conn, this);
+                break;
+            case 'knownPeers':
+                this.knownPeers = req.knownPeers;
+                break;
         }
     }
 

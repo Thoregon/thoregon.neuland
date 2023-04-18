@@ -183,7 +183,7 @@ export default class SyncManager extends ResourceHandler {
     rediscover(policy, opt) {
         if (!policy.canDiscover()) return;
         if (this.isrelay) return;
-        const knownSouls = [...DB().keys()]; // this.knownSouls.keys();
+        const knownSouls = [...this.knownSouls.keys()]; // [...DB().keys()]; // [...universe.ThoregonDecorator.knownEntities().keys()]
         debuglog("rediscover");
         this.entities(policy, knownSouls);
         // [...knownSouls].forEach((soul) => this.discover(soul, undefined, opt));

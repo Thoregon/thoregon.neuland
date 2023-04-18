@@ -325,6 +325,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
         const conn = this.getOpenConnection(otherPeerId);
         if (!conn || !isConnOpen(conn)) {
             this.connect(otherPeerId, (conn) => {
+                if (!isConnOpen(conn)) return;
                 conn.send(req);
                 cb?.(conn);
             });

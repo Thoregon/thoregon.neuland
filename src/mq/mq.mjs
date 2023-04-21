@@ -45,8 +45,8 @@ export default class MQ extends ResourceHandler {
         return this.getService(soul);
     }
 
-    addProducer(soul, service) {
-        const producer = NeulandProducer.at(soul, service);
+    addProducer(soul, service, contextwrapper) {
+        const producer = NeulandProducer.at(soul, service, contextwrapper);
         this.producers.set(soul, producer);
         producer.mq = this;
         return service;

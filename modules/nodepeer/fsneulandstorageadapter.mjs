@@ -15,15 +15,19 @@ import { exists, ensureDir }      from "/evolux.universe/lib/loader/fsutils.mjs"
 
 let storing = false;
 
+const DBGID = '** NeulandDB';
+
 export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
 
     init({ location, name } = {}) {
+        universe.debuglog(DBGID, "FS adapter init");
         this.opt           = { location, name };
         const directory    = path.resolve(process.cwd(), location);
         this.opt.directory = directory;
         this.opt.filepath  = `${directory}/${name ?? 'neuland'}.tdb`;
         ensureDir(location);
         ensureDir(`${location}/backup`);
+        universe.debuglog(DBGID, "FS adapter init DONE");
     }
 
     //
@@ -37,11 +41,12 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             await this.store();
         } else {
             try {
+                universe.debuglog(DBGID, "load");
                 const bin = await fs.readFile(filepath);
                 this.db   = bin ? deserialize(bin) : new Map();
             } catch (e) {
                 if (!retry) return;
-                console.log("FSNeulandStorageAdapter can't open DB file", e);
+                universe.debuglog(DBGID, "FSNeulandStorageAdapter can't open DB file", e);
                 if (retry) await fs.unlink(filepath);
                 await this.load(false);
             }
@@ -51,6 +56,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
     async store(backup = false) {
         if (storing) return;
         storing = true;
+        universe.debuglog(DBGID, "store");
         try {
             if (backup) await this.backup(universe.inow);
             const db = this.db;
@@ -58,6 +64,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             const bin = serialize(db);
             if (bin == undefined || bin.length === 0) return;
             await fs.writeFile(this.opt.filepath, bin);
+            universe.debuglog(DBGID, "store done");
         } catch (e) {
             console.log(e);
         }
@@ -68,6 +75,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
         try {
             const backuppath = this.getBackupFilepath(id);
             await fs.copyFile(this.opt.filepath, backuppath);
+            universe.debuglog(DBGID, "backup done");
         } catch (e) {
             console.log(e);
         }

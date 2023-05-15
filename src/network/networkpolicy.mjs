@@ -15,6 +15,7 @@ export default class NetworkPolicy {
     constructor(opt) {
         this.opt = opt;
         this.init();
+        this._hasSyncPartner = false;
     }
 
     init() {
@@ -65,7 +66,9 @@ export default class NetworkPolicy {
         this.resourcehandlers.forEach((resourcehandler) => resourcehandler.discoverAvailable(this));
     }
 
-
+    isSyncAvaliable() {
+        return this._hasSyncPartner;
+    }
 
     //
     // resources
@@ -121,6 +124,7 @@ export default class NetworkPolicy {
                 this.processDiscover(data, conn, adapter);
                 break;
             case 'aware':
+                this._hasSyncPartner = true;
                 // the other peer is aware of the resource
                 this.processAware(data, conn, adapter);
                 break;

@@ -327,6 +327,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
         const conn = this.getOpenConnection(otherPeerId);
         if (!conn || !isConnOpen(conn)) {
             this.connect(otherPeerId, (conn) => {
+                universe.debuglog(DBGID, "send .. open", isConnOpen(conn));
                 if (!isConnOpen(conn)) return;
                 conn.send(req);
                 cb?.(conn);
@@ -362,12 +363,11 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
     //
 
     broadcast(data, exceptconn) {
-        const peerconns = this.peer.connections;
-        Object.entries(peerconns).forEach(([peeris, conns]) => {
-            conns.forEach((conn) => {
-                if (conn === exceptconn) return;  // don't send request back
-                if (isConnOpen(conn)) conn.send(data);
-            })
+        const peerconns = this.getOpenConnections();
+        universe.debuglog(DBGID, "broadcast .. open connections", peerconns?.length ?? 0);
+        peerconns.forEach((conn) => {
+            if (conn === exceptconn) return;  // don't send request back
+            if (isConnOpen(conn)) conn.send(data);
         })
         return this;
     }

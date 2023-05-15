@@ -13,17 +13,13 @@
 import ResourceHandler   from "../resource/resourcehandler.mjs";
 import Driver            from "./syncdrivermerge.mjs";
 import ThoregonDecorator from "/thoregon.archetim/lib/thoregondecorator.mjs";
-import policy            from "../../../thoregon.truCloud/lib/application/policy.mjs";
-
-// import Driver         from "./syncdrivermsg.mjs";
-
-const debuglog = (...args) => {}; // console.log("Sync", universe.inow, ":", ...args);   //  {};
-const debuglog2 = (...args) => {}; // console.log("SyncDriver", universe.inow, ":", ...args); //  {};
 
 const DISCOVER_DELAY = 120;
 const DISCOVER_SHIFT = 100;
 
 const DB   = () => universe.neuland;
+
+const DBGID = '-- SyncManager';
 
 export default class SyncManager extends ResourceHandler {
 
@@ -52,8 +48,7 @@ export default class SyncManager extends ResourceHandler {
     discoverAvailable(policy) {
         this.rediscover(policy);
     }
-
-    //
+        //
     // sync
     //
     isResponsible(soul, data) {
@@ -70,6 +65,7 @@ export default class SyncManager extends ResourceHandler {
         if (!entity) return;
         let driver = this.syncOutQ[itemkey];
         if (driver) driver.cancel(); // running but outdated
+        universe.debuglog(DBGID, "awareOut", soul);
         driver = this.syncOutQ[itemkey] = Driver.outgoing(this, soul/*, entity*/, policy, peerid);
         driver.drive();
     }
@@ -89,6 +85,7 @@ export default class SyncManager extends ResourceHandler {
         if (!entity) return;
         let driver  = this.syncInQ[itemkey];
         if (driver)  driver.cancel(); // running but outdated
+        universe.debuglog(DBGID, "awareIn", soul);
         driver = this.syncInQ[itemkey] = Driver.incomming(this, soul/*, entity*/, policy, peerid);
         driver.drive();
     }
@@ -98,6 +95,7 @@ export default class SyncManager extends ResourceHandler {
         const itemkey = `${peerid}.${soul}`;
         let driver  = this.syncInQ[itemkey];
         if (!driver) return;
+        universe.debuglog(DBGID, "syncIn", soul);
         driver.sync(data, policy, peerid);
     }
 
@@ -105,6 +103,7 @@ export default class SyncManager extends ResourceHandler {
         const { soul } = data;
         const itemkey = `${peerid}.${soul}`;
         let driver  = this.syncOutQ[itemkey];
+        universe.debuglog(DBGID, "syncOut", soul);
         if (!driver) driver = this.syncOutQ[itemkey] = Driver.outgoing(this, soul, undefined, policy, peerid);
         driver.sync(data, policy, peerid);
     }
@@ -116,10 +115,12 @@ export default class SyncManager extends ResourceHandler {
      */
     syncInFinished(driver) {
         this.syncFinished(driver, this.syncInQ);
+        universe.debuglog(DBGID, "syncInFinished", driver?.soul);
     }
 
     syncOutFinished(driver) {
         this.syncFinished(driver, this.syncOutQ);
+        universe.debuglog(DBGID, "syncOutFinished", driver?.soul);
     }
 
     syncFinished(driver, Q, out) {
@@ -131,20 +132,20 @@ export default class SyncManager extends ResourceHandler {
         try {
             this.emitResourceChanged(soul, driver.entity);
         } catch (e) {
-            debuglog("Can't merge", curentity, driver.entity);
+            universe.debuglog(DBGID, "Can't merge", curentity, driver.entity);
         }
     }
 
     emitResourceChanged(soul, amdoc) {
         const { listener } = this.getResourceEntry(soul);
-        try { listener?.(soul, amdoc) } catch (e) { debuglog("ERROR, resource sync listener", e) };
+        try { listener?.(soul, amdoc) } catch (e) { universe.debuglog(DBGID, "ERROR, resource sync listener", e) };
 /*
         if (this.isrelay && !listener) {
             try {
                 const bin   = Automerge.save(amdoc);
                 DB().set(soul, bin);
             } catch (e) {
-                debuglog("emitResourceChanged: can't store", e);
+                universe.debuglog(DBGID, "emitResourceChanged: can't store", e);
             }
         }
 */
@@ -168,6 +169,7 @@ export default class SyncManager extends ResourceHandler {
         // - add a challenge the responder must resolve (?)
         if (entity != undefined) this.setResource(soul, entity, listener);
         const policy = undefined;   // todo if needed
+        universe.debuglog(DBGID, "discover", soul);
         this.discoverQ.discover(soul, entity, policy, opt);
         // this._discover(soul, entity, opt);
     }
@@ -177,14 +179,14 @@ export default class SyncManager extends ResourceHandler {
         const req = { soul };  // todo [OPEN]: need credential
         if (policy) return policy.sendDiscover(req, opt);
         policies.forEach((policy) => policy.sendDiscover(req, opt));
-        debuglog("discover", soul);
+        universe.debuglog(DBGID, "_discover", soul);
     }
 
     rediscover(policy, opt) {
         if (!policy.canDiscover()) return;
         if (this.isrelay) return;
         const knownSouls = [...this.knownSouls.keys()]; // [...DB().keys()]; // [...universe.ThoregonDecorator.knownEntities().keys()]
-        debuglog("rediscover");
+        universe.debuglog(DBGID, "rediscover");
         this.entities(policy, knownSouls);
         // [...knownSouls].forEach((soul) => this.discover(soul, undefined, opt));
     }
@@ -196,7 +198,7 @@ export default class SyncManager extends ResourceHandler {
 
     otherEntities(policy, peerid, knownSouls) {
         const missing = knownSouls.filter(soul => !DB().has(soul));
-        debuglog("otherEntities", missing);
+        universe.debuglog(DBGID, "otherEntities", missing);
         policy.sendMissingEntities(peerid, missing);
     }
 
@@ -207,7 +209,7 @@ export default class SyncManager extends ResourceHandler {
     }
 
     useEntities(entities) {
-        debuglog("useEntities");
+        universe.debuglog(DBGID, "useEntities");
         Object.entries(entities).forEach(([soul, buf]) => {
             if (!DB().has(soul)) {
                 const bin = new Uint8Array(buf);
@@ -219,6 +221,16 @@ export default class SyncManager extends ResourceHandler {
     //
     // resources
     //
+
+    setResource(soul, resource, listener) {
+        universe.debuglog(DBGID, "setResource", soul);
+        return super.setResource(soul, resource, listener);
+    }
+
+    dropResource(soul) {
+        universe.debuglog(DBGID, "dropResource", soul);
+        super.dropResource(soul);
+    }
 
     getAMDoc(soul) {
         const entity = ThoregonDecorator.getKnownEntity(soul);
@@ -262,13 +274,13 @@ class DiscoverQ {
         const fn = ((args) => () => this.doDiscover(args))(what);
         const pending4soul = { what, fn, timeout: setTimeout(fn, DISCOVER_DELAY) };
         this.pending.set(soul, pending4soul);
-        debuglog("discover delay", soul);
+        universe.debuglog(DBGID, "discover delay", soul);
     }
 
     shift(pending4soul, soul, entity, policy, opt) {
         const { fn, timeout } = pending4soul;
         clearTimeout(timeout);
         pending4soul.timeout = setTimeout(fn, DISCOVER_SHIFT);
-        debuglog("discover shift", soul);
+        universe.debuglog(DBGID, "discover shift", soul);
     }
 }

@@ -9,7 +9,7 @@
 const WAIT_SYNC_DELAY     = 100000;
 const USE_WATCHDOG        = true;
 
-const debuglog2 = (...args) => {}; // console.log("SyncDriver", universe.inow, ":", ...args); //  {};
+const DBGID = '-- SyncDriverMerge';
 
 export default class SyncDriverMerge {
 
@@ -21,7 +21,7 @@ export default class SyncDriverMerge {
 
 
     static outgoing(syncmgr, soul/*, entity*/, policy, peerid) {
-        debuglog2("outgoing", peerid);
+        universe.debuglog(DBGID, "outgoing", peerid);
         const driver     = new this(soul/*, entity*/);
         driver.incomming = false;
         driver.syncmgr   = syncmgr;
@@ -30,7 +30,7 @@ export default class SyncDriverMerge {
     }
 
     static incomming(syncmgr, soul/*, entity*/, policy, peerid) {
-        debuglog2("incomming", peerid);
+        universe.debuglog(DBGID, "incomming", peerid);
         const driver     = new this(soul/*, entity*/);
         driver.incomming = true;
         driver.syncmgr   = syncmgr;
@@ -52,7 +52,7 @@ export default class SyncDriverMerge {
             return;
         }
         const msg     = bin.buffer;
-        debuglog2("drive", this.peerid);
+        universe.debuglog(DBGID, "drive", this.peerid);
         this.sendSync({ soul, msg }, policy);
         if (USE_WATCHDOG) {
             if (this.synctimeoutid) clearTimeout(this.synctimeoutid);
@@ -62,7 +62,7 @@ export default class SyncDriverMerge {
     }
 
     sendSync({ soul, msg }, policy) {
-        debuglog2("sendSync", soul, this.peerid);
+        universe.debuglog(DBGID, "sendSync", soul, this.peerid);
         const cmd = this.incomming ? 'syncOut' : 'syncIn';
         const wasSent = policy.sendSync(cmd, { soul, msg }, this.peerid);
     }
@@ -81,7 +81,7 @@ export default class SyncDriverMerge {
     }
 
     syncFinished() {
-        debuglog2("syncFinished");
+        universe.debuglog(DBGID, "syncFinished");
         // this.policy.closePeerConnection(this.peerid);
         this.policy?.syncFinished(this.peerid);
         if (this.incomming) {
@@ -92,7 +92,7 @@ export default class SyncDriverMerge {
     }
 
     cancel() {
-        debuglog2("cancel");
+        universe.debuglog(DBGID, "cancel");
         this.isCanceled = true;
         this.syncFinished(false);
     }

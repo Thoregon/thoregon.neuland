@@ -8,6 +8,8 @@
 
 const debuglog = (...args) => {}; // console.log("NetworkPolicy", Date.now(), ":", ...args);
 
+const DBGID = ')) NetworkPolicy';
+
 export default class NetworkPolicy {
 
     constructor(opt) {
@@ -92,6 +94,7 @@ export default class NetworkPolicy {
         req = { ...req, cmd: 'discover', reqid: universe.random(), c: this.getCredentialRef() };
         this.usedDiscoverId(req.reqid);
         const peerid = opt.peerid;
+        universe.debuglog(DBGID, "discover", req);
         adapters.forEach((adapter) => {
             req.source = adapter.peerid;
             if (peerid) {

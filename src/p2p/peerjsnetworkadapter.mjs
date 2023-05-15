@@ -29,6 +29,8 @@ const debuglog2 = (...args) => {}; // onsole.log("PeerJSNetworkAdapter", univers
 
 const isConnOpen = (conn) => conn?.open && conn?.peerConnection.connectionState === 'connected';
 
+const DBGID = ')) PeerJSNetworkAdapter';
+
 export default class PeerJSNetworkAdapter extends NetworkAdapter {
 
     constructor(policy) {

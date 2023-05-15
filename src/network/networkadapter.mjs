@@ -12,6 +12,8 @@ import { ErrNotImplemented } from "../errors.mjs";
 
 const debuglog = (...args) => console.log("NetworkAdapter", Date.now(), ":", ...args);
 
+const DBGID = ')) NetworkAdapter';
+
 export default class NetworkAdapter {
 
     constructor(peerid, policy) {

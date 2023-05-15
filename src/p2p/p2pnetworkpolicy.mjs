@@ -11,6 +11,8 @@ import NetworkPolicy        from "../network/networkpolicy.mjs";
 const debuglog = (...args) => {} // console.log("P2PNetworkPolicy", universe.inow, ":", ...args);  // {}
 const debugerr = (...args) => console.error("P2PNetworkPolicy", universe.inow, ":", ...args);
 
+const DBGID = ')) P2PNetworkPolicy';
+
 export default class P2PNetworkPolicy extends NetworkPolicy {
 
     constructor(opt) {

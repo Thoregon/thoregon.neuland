@@ -235,7 +235,7 @@ export default class SyncManager extends ResourceHandler {
     getAMDoc(soul) {
         const entity = ThoregonDecorator.getKnownEntity(soul);
         if (!entity) return;
-        const amdoc = entity.$amdocsafe();
+        const amdoc = entity.$amdocsave();
         return amdoc;
     }
 

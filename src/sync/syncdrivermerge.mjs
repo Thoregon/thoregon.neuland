@@ -70,7 +70,7 @@ export default class SyncDriverMerge {
     sync({ soul, msg }, peerid) {
         if (this.isCanceled) return;
         const bin = new Uint8Array(msg);
-        try {
+        try { // @@FIREFOX
             const doc   = universe.Automerge.load(bin);
             this.entity = doc;
         } catch (e) {

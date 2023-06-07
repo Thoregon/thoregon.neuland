@@ -20,6 +20,7 @@ const DISCOVER_SHIFT = 100;
 const DB   = () => universe.neuland;
 
 const DBGID = '-- SyncManager';
+const ME = () => globalThis.me ? me : { soul: '00000000000000' };
 
 export default class SyncManager extends ResourceHandler {
 
@@ -211,7 +212,9 @@ export default class SyncManager extends ResourceHandler {
     useEntities(entities) {
         universe.debuglog(DBGID, "useEntities");
         Object.entries(entities).forEach(([soul, buf]) => {
-            if (!DB().has(soul)) {
+            if (soul === ME().soul) {
+                debugger;
+            } else if (!DB().has(soul)) {
                 const bin = new Uint8Array(buf);
                 DB().set(soul, bin);
             }

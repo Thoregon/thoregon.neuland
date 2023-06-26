@@ -168,7 +168,7 @@ export default class SyncManager extends ResourceHandler {
         // build the following:
         // - with the credential (in opt) encrypt and sing the request
         // - add a challenge the responder must resolve (?)
-        if (entity != undefined) this.setResource(soul, entity, listener);
+        if (entity != undefined) this.setResource(soul, entity, listener, opt);
         const policy = undefined;   // todo if needed
         universe.debuglog(DBGID, "discover", soul);
         this.discoverQ.discover(soul, entity, policy, opt);
@@ -225,7 +225,7 @@ export default class SyncManager extends ResourceHandler {
     // resources
     //
 
-    setResource(soul, resource, listener) {
+    setResource(soul, resource, listener, opt) {
         universe.debuglog(DBGID, "setResource", soul);
         return super.setResource(soul, resource, listener);
     }

@@ -37,23 +37,29 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
     async load(retry = true) {
         const filepath = this.opt.filepath;
         if (!exists(filepath)) {
-            this.db = new Map();
-            await this.store();
+            if (!(await this.restoreBackup(filepath))) {
+                this.db = new Map();
+                await this.store();
+            }
         } else {
             try {
                 universe.debuglog(DBGID, "load");
                 const bin = await fs.readFile(filepath);
                 this.db   = bin ? deserialize(bin) : new Map();
             } catch (e) {
+                debugger;
                 if (!retry) return;
                 universe.debuglog(DBGID, "FSNeulandStorageAdapter can't open DB file", e);
-                if (retry) await fs.unlink(filepath);
+                if (retry) {
+                    await fs.unlink(filepath);
+                    await this.restoreBackup(filepath);
+                }
                 await this.load(false);
             }
         }
     }
 
-    async store(backup = false) {
+    async store(backup = true) {
         if (storing) return;
         storing = true;
         universe.debuglog(DBGID, "store");
@@ -62,10 +68,21 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             const db = this.db;
             if (!db) return;
             const bin = serialize(db);
-            if (bin == undefined || bin.length === 0) return;
+            if (bin == undefined || bin.length < 6) {
+                console.log("DB corrupted");
+                debugger;
+                return;
+            }
             await fs.writeFile(this.opt.filepath, bin);
+            const size = await fs.stat(this.opt.filepath);
+            if (size < 6) {
+                console.log("DB corrupted");
+                debugger;
+            }
             universe.debuglog(DBGID, "store done");
         } catch (e) {
+            await this.backup(universe.inow);
+            debugger;
             console.log(e);
         }
         storing = false;
@@ -73,7 +90,13 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
 
     async backup(id) {
         try {
-            const backuppath = this.getBackupFilepath(id);
+            const size = await fs.stat(this.opt.filepath);
+            if (size < 1) {
+                console.log("DB corrupted");
+                debugger;
+                return;
+            }
+            const backuppath = this.getBackupFilepath();
             await fs.copyFile(this.opt.filepath, backuppath);
             universe.debuglog(DBGID, "backup done");
         } catch (e) {
@@ -81,9 +104,24 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
         }
     }
 
-    getBackupFilepath(id) {
+    async restoreBackup(filepath) {
+        const backuppath = this.getBackupFilepath();
+        if (!exists(backuppath)) return false;
+        try {
+            universe.debuglog(DBGID, "restore backup");
+            if (exists(filepath)) await fs.unlink(filepath);
+            await fs.copyFile(backuppath, filepath);
+            universe.debuglog(DBGID, "restore backup done");
+            return true;
+        } catch (e) {
+            universe.debuglog(DBGID, "restore backup error", e);
+            return false;
+        }
+    }
+
+    getBackupFilepath() {
         const { directory, name } = this.opt;
-        const backup = `${directory}/backup/${name ?? 'neuland'}_${id}.tdb`;
+        const backup = `${directory}/backup/${name ?? 'neuland'}_bak.tdb`;    // `${directory}/backup/${name ?? 'neuland'}_${id}.tdb`
         return backup;
     }
 

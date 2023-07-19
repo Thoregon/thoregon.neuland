@@ -16,7 +16,7 @@ const debugerr = (...args) => console.error("NeulandDB", Date.now(), ":", ...arg
 const TEN_MIN             = 10 * 60 * 1000;
 const ONE_HOUR            = 60 * 60 * 1000;
 const NEULAND_STORAGE_OPT = { store: 'data', name: 'neuland', backup: ONE_HOUR, maxmod: 1000 }
-const USE_BACKUP          = false;
+const USE_BACKUP          = true;
 
 const DBGID = '** NeulandDB';
 
@@ -51,7 +51,7 @@ export default class NeulandDB {
 
     stop() {
         if (this.autoid) clearTimeout(this.autoid);
-        if (this.mod > 0) storage.store();
+        if (this.mod > 0) storage.store(USE_BACKUP);
         this.ready = false;
         return this;
     }

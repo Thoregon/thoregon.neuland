@@ -77,11 +77,16 @@ export default class NeulandDB {
         }, WRITE_INTERVAL);
     }
 
-    modified() {
+    modified({ immed = false } = {}) {
         const mod = ++this.mod;
+        if (immed) return this._store();
         if (mod < WRITE_COUNT) return this;
         const backup = mod > this.opt.maxmod;
         this.mod = 0;
+        this._store();
+    }
+
+    _store() {
         universe.debuglog(DBGID, "modified store");
         storage.store(backup);
         if (backup) this.lastbackup = universe.inow;
@@ -105,16 +110,16 @@ export default class NeulandDB {
         return storage.get(soul);
     }
 
-    set(soul, item) {
+    set(soul, item, opt) {
         universe.debuglog(DBGID, "set", soul);
         storage.set(soul, item);
-        this.modified();
+        this.modified(opt);
     }
 
-    del(soul) {
+    del(soul, opt) {
         universe.debuglog(DBGID, "del", soul);
         storage.del(soul);
-        this.modified();
+        this.modified(opt);
     }
 
     //

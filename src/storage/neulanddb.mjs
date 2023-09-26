@@ -86,7 +86,7 @@ export default class NeulandDB {
         this._store();
     }
 
-    _store() {
+    _store(backup) {
         universe.debuglog(DBGID, "modified store");
         storage.store(backup);
         if (backup) this.lastbackup = universe.inow;

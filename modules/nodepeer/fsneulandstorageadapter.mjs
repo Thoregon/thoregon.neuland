@@ -39,7 +39,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
         if (!exists(filepath)) {
             if (!(await this.restoreBackup(filepath))) {
                 this.db = new Map();
-                await this.store();
+                await this.create();
             }
         } else {
             try {
@@ -84,8 +84,23 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             await this.backup(universe.inow);
             debugger;
             console.log(e);
+        } finally {
+            storing = false;
         }
-        storing = false;
+    }
+
+    async create() {
+        storing = true;
+        try {
+            const db = this.db;
+            if (!db) return;
+            const bin = serialize(db);
+            await fs.writeFile(this.opt.filepath, bin);
+        } catch (e) {
+            console.log(e);
+        } finally {
+            storing = false;
+        }
     }
 
     async backup(id) {

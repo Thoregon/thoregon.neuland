@@ -49,13 +49,31 @@ export default class SyncManager extends ResourceHandler {
     discoverAvailable(policy) {
         this.rediscover(policy);
     }
-        //
+
+    //
+    // Resources
+    //
+
+    getResource(soul) {
+        let { resource } = this.getResourceEntry(soul);
+        if (!resource && DB().has(soul)) resource = this.loadResource(soul);
+        return resource;
+    }
+
+    loadResource(soul) {
+        // if (!DB().has(soul)) return {};
+        ThoregonDecorator.from(soul);
+        let { resource } = this.getResourceEntry(soul);
+        return resource;
+    }
+
+    //
     // sync
     //
     isResponsible(soul, data) {
-        if (!data) return this.knownSouls.has(soul);
+        if (!data) return DB().has(soul); //  this.knownSouls.has(soul);
         const { cmd } = data;
-        return cmd === 'entities' || cmd === 'missingentities' || cmd == 'useentities' || this.knownSouls.has(soul);
+        return cmd === 'entities' || cmd === 'missingentities' || cmd == 'useentities' || DB().has(soul); // this.knownSouls.has(soul);
     }
 
     awareOut(data, policy, peerid) {

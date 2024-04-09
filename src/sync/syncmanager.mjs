@@ -62,7 +62,7 @@ export default class SyncManager extends ResourceHandler {
 
     loadResource(soul) {
         // if (!DB().has(soul)) return {};
-        ThoregonDecorator.from(soul);
+        ThoregonDecorator.from(soul, { incommingSync: true });
         let { resource } = this.getResourceEntry(soul);
         return resource;
     }
@@ -181,15 +181,16 @@ export default class SyncManager extends ResourceHandler {
      * @param {String} soul  resource id
      * @param {Object} entity
      * @param {Object} listener
+     * @param {Object} opt
      */
-    discover(soul, entity, listener, opt) {
+    discover(soul, entity, listener, opt = {}) {
         // build the following:
         // - with the credential (in opt) encrypt and sing the request
         // - add a challenge the responder must resolve (?)
         if (entity != undefined) this.setResource(soul, entity, listener, opt);
         const policy = undefined;   // todo if needed
         universe.debuglog(DBGID, "discover", soul);
-        this.discoverQ.discover(soul, entity, policy, opt);
+        if (!opt.incommingSync) this.discoverQ.discover(soul, entity, policy, opt);
         // this._discover(soul, entity, opt);
     }
 

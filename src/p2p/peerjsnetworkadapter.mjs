@@ -18,6 +18,7 @@ const HEARTBEAT_INTERVAL      = 3000;
 const RECONNECT_INTERVAL      = 3000;
 const RETRY_CONNECT_INTERVAL  = 300;
 const PEER_RECONNECT_INTERVAL = 1000;
+const IMMED_RECONNECT_WAIT    = 50;
 
 // simulated import. will be set when the instance is created
 let Peer;
@@ -98,7 +99,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
                         if (this._maintaintimeoutid) clearTimeout(this._maintaintimeoutid);
                         this.maintainPeer(true);
                     } else {
-                        this.peer.reconnect();
+                        setTimeout(() => this.peer.reconnect(), IMMED_RECONNECT_WAIT);
                     }
                 } catch (e) { debugerr("Can't reconnect peer", e) }
             });
@@ -164,7 +165,7 @@ export default class PeerJSNetworkAdapter extends NetworkAdapter {
         try {
             const peer = this.peer;
             if (peer) {
-                peer.disconnect();
+                if (peer.open) peer.disconnect();
                 peer.destroy()
             }
         } catch (e) {

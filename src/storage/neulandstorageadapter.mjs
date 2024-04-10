@@ -33,6 +33,11 @@ export default class NeulandStorageAdapter {
         return db.keys();
     }
 
+    size() {
+        const db = this.db;
+        return db.size;
+    }
+
     //
     // items
     //

@@ -97,6 +97,14 @@ export default class NeulandDB {
         return this.storage.keys();
     }
 
+    size() {
+        return this.storage.size()
+    }
+
+    flush() {
+        return this._store();
+    }
+
     //
     // items
     //

@@ -73,7 +73,7 @@ export default class SyncManager extends ResourceHandler {
     isResponsible(soul, data) {
         if (!data) return DB().has(soul); //  this.knownSouls.has(soul);
         const { cmd } = data;
-        return cmd === 'entities' || cmd === 'missingentities' || cmd == 'useentities' || DB().has(soul); // this.knownSouls.has(soul);
+        return /*cmd === 'entities' || cmd === 'missingentities' || cmd == 'useentities' ||*/ DB().has(soul); // this.knownSouls.has(soul);
     }
 
     awareOut(data, policy, peerid) {
@@ -207,7 +207,7 @@ export default class SyncManager extends ResourceHandler {
         if (this.isrelay) return;
         const knownSouls = [...this.knownSouls.keys()]; // [...DB().keys()]; // [...universe.ThoregonDecorator.knownEntities().keys()]
         universe.debuglog(DBGID, "rediscover");
-        this.entities(policy, knownSouls);
+        // this.entities(policy, knownSouls);
         // [...knownSouls].forEach((soul) => this.discover(soul, undefined, opt));
     }
 
@@ -219,16 +219,18 @@ export default class SyncManager extends ResourceHandler {
     otherEntities(policy, peerid, knownSouls) {
         const missing = knownSouls.filter(soul => !DB().has(soul));
         universe.debuglog(DBGID, "otherEntities", missing);
-        policy.sendMissingEntities(peerid, missing);
+        // policy.sendMissingEntities(peerid, missing);
     }
 
     missingEntities(policy, peerid, missing) {
         const entites = {};
         missing.forEach(soul => entites[soul] = DB().get(soul));
-        policy.sendUseEntities(peerid, entites);
+        // policy.sendUseEntities(peerid, entites);
     }
 
     useEntities(entities) {
+        return;
+/*
         universe.debuglog(DBGID, "useEntities");
         Object.entries(entities).forEach(([soul, buf]) => {
             if (soul === ME().soul) {
@@ -238,6 +240,7 @@ export default class SyncManager extends ResourceHandler {
                 DB().set(soul, bin);
             }
         });
+*/
     }
 
     //

@@ -64,7 +64,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
         storing = true;
         universe.debuglog(DBGID, "store");
         try {
-            if (backup) await this.backup(universe.inow);
+            if (backup) await this.backup(universe.nowFormated);
             const db = this.db;
             if (!db) return;
             const bin = serialize(db);
@@ -81,7 +81,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             }
             universe.debuglog(DBGID, "store done");
         } catch (e) {
-            await this.backup(universe.inow);
+            await this.backup(universe.nowFormated);
             debugger;
             console.log(e);
         } finally {
@@ -111,7 +111,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
                 debugger;
                 return;
             }
-            const backuppath = this.getBackupFilepath();
+            const backuppath = this.getBackupFilepath(id);
             await fs.copyFile(this.opt.filepath, backuppath);
             universe.debuglog(DBGID, "backup done");
         } catch (e) {
@@ -134,9 +134,9 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
         }
     }
 
-    getBackupFilepath() {
+    getBackupFilepath(id) {
         const { directory, name } = this.opt;
-        const backup = `${directory}/backup/${name ?? 'neuland'}_bak.tdb`;    // `${directory}/backup/${name ?? 'neuland'}_${id}.tdb`
+        const backup = `${directory}/backup/${name ?? 'neuland'}_${id}.tdb`; // `${directory}/backup/${name ?? 'neuland'}_bak.tdb`;    // `${directory}/backup/${name ?? 'neuland'}_${id}.tdb`
         return backup;
     }
 

@@ -12,6 +12,7 @@ let WRITE_COUNT    = 100;
 const debuglog = (...args) => {}; // console.log("NeulandDB", Date.now(), ":", ...args);
 const debugerr = (...args) => console.error("NeulandDB", Date.now(), ":", ...args);
 
+const FIVE_MIN            =  5 * 60 * 1000;
 const TEN_MIN             = 10 * 60 * 1000;
 const ONE_HOUR            = 60 * 60 * 1000;
 const NEULAND_STORAGE_OPT = { store: 'data', name: 'neuland', backup: ONE_HOUR, maxmod: 1000 }

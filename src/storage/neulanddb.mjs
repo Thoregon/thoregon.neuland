@@ -52,7 +52,7 @@ export default class NeulandDB {
 
     stop() {
         if (this.autoid) clearTimeout(this.autoid);
-        /*if (this.mod > 0)*/ this.storage.store(USE_BACKUP);
+        /*if (this.mod > 0)*/ this.storage.store(USE_BACKUP, true);
         this.ready = false;
         return this;
     }
@@ -66,12 +66,13 @@ export default class NeulandDB {
     // management
     //
     auto() {
-        this.autoid = setTimeout(() => {
+        this.autoid = setTimeout(async () => {
             if (this.mod > 0) {
                 this.mod = 0;
                 universe.debuglog(DBGID, "auto store");
                 const backup = USE_BACKUP && (this.lastbackup + this.opt.backup > universe.inow);
-                this.storage.store(backup);
+                const stored = await this.storage.store(backup);
+                if (!stored) this.mod++;
                 if (backup) this.lastbackup = universe.inow;
             }
             this.auto();
@@ -80,7 +81,7 @@ export default class NeulandDB {
 
     modified({ immed = false } = {}) {
         const mod = ++this.mod;
-        if (immed) return this._store();
+        if (immed || this.opt.immed) return this._store();
         if (mod < WRITE_COUNT) return this;
         const backup = mod > this.opt.maxmod;
         this.mod = 0;
@@ -88,9 +89,12 @@ export default class NeulandDB {
     }
 
     _store(backup) {
-        universe.debuglog(DBGID, "modified store");
-        this.storage.store(backup);
-        if (backup) this.lastbackup = universe.inow;
+        (async () => {
+            universe.debuglog(DBGID, "modified store");
+            const stored = await this.storage.store(backup);
+            if (!stored) this.mod++; // mark modified for auto store
+            if (backup) this.lastbackup = universe.inow;
+        })();
     }
 
     keys() {

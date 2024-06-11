@@ -13,7 +13,7 @@ import path                       from "path";
 import NeulandStorageAdapter      from "../../src/storage/neulandstorageadapter.mjs";
 import { exists, ensureDir }      from "/evolux.universe/lib/loader/fsutils.mjs";
 
-let storing = false;
+// let storing = false;
 
 const DBGID = '** NeulandDB';
 
@@ -25,6 +25,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
         const directory    = path.resolve(process.cwd(), location);
         this.opt.directory = directory;
         this.opt.filepath  = `${directory}/${name ?? 'neuland'}.tdb`;
+        this.storing = false;
         ensureDir(location);
         ensureDir(`${location}/backup`);
         universe.debuglog(DBGID, "FS adapter init DONE");
@@ -59,9 +60,13 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
         }
     }
 
-    async store(backup = true) {
-        if (storing) return;
-        storing = true;
+    async store(backup = true, force = false) {
+        if (this.storing && !force) {
+            console.log("== Neuland: not stored, store while storing");
+            return false;
+        }
+        this.storing = true;
+        console.log("== Neuland: start storing (store)");
         universe.debuglog(DBGID, "store");
         try {
             if (backup) await this.backup(universe.nowFormated);
@@ -85,12 +90,15 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             debugger;
             console.log(e);
         } finally {
-            storing = false;
+            console.log("== Neuland: end storing (store)");
+            this.storing = false;
         }
+        return true;
     }
 
     async create() {
-        storing = true;
+        this.storing = true;
+        console.log("== Neuland: start storing (create)");
         try {
             const db = this.db;
             if (!db) return;
@@ -99,7 +107,8 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
         } catch (e) {
             console.log(e);
         } finally {
-            storing = false;
+            console.log("== Neuland: end storing (create)");
+            this.storing = false;
         }
     }
 

@@ -6,6 +6,7 @@
  * @see: {@link https://github.com/Thoregon}
  */
 
+import { timeout }     from "/evolux.universe";
 import ResourceHandler from "../resource/resourcehandler.mjs";
 import Facade          from "/thoregon.crystalline/lib/facade.mjs";
 import NeulandProducer from "/thoregon.crystalline/lib/producers/neulandproducer.mjs";
@@ -41,8 +42,14 @@ export default class MQ extends ResourceHandler {
     // producers & consumers
     //
 
-    async consumerFor(soul) {
-        return this.getService(soul);
+    async consumerFor(soul, retry = 3) {
+        try {
+            return await this.getService(soul);
+        } catch (e) {
+            if (--retry <= 0) throw e;
+            await timeout(300);
+            return await this.consumerFor(soul, retry);
+        }
     }
 
     addProducer(soul, service, contextwrapper) {

@@ -34,7 +34,7 @@ export default class SyncManager extends ResourceHandler {
 
     static setup() {
         const sync = new this();
-        sync.init();
+        if (!universe.NO_SYNC) sync.init();
         return sync;
     }
 

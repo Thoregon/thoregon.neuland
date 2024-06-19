@@ -83,7 +83,7 @@ export default class MQ extends ResourceHandler {
                 this.services.set(soul, facade);
             } else {
                 await this.wait4Consumer(soul, consumer);
-                service = this.services.get(soul);
+                if (!service) service = this.services.get(soul);
             }
         }
 

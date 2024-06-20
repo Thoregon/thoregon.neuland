@@ -76,15 +76,21 @@ export default class MQ extends ResourceHandler {
         let service = this.services.get(soul);
         if (!service) {
             let consumer = this.consumers.get(soul);
-            if (!consumer) {
-                let consumer = NeulandConsumer.from(soul);
+//            if (!consumer) {
+                consumer = NeulandConsumer.from(soul);
                 this.consumers.set(soul, consumer);
                 let facade = service = await Facade.use(consumer);
                 this.services.set(soul, facade);
+/*
             } else {
                 await this.wait4Consumer(soul, consumer);
-                if (!service) service = this.services.get(soul);
+                service = this.services.get(soul);
+                if (!service) {
+                    let facade = service = consumer._facade;
+                    this.services.set(soul, facade);
+                }
             }
+*/
         }
 
         return service;

@@ -20,8 +20,6 @@ const USE_BACKUP          = true;
 
 const DBGID = '** NeulandDB';
 
-const AM   = () => universe.Automerge;
-
 export default class NeulandDB {
 
     init(StorageAdapter, storageOpt) {
@@ -133,17 +131,6 @@ export default class NeulandDB {
         universe.debuglog(DBGID, "del", soul);
         this.storage.del(soul);
         this.modified(opt);
-    }
-
-    //
-    // debugging & testing
-    //
-
-    getAM(soul) {
-        const bin = this.get(soul);
-        if (!bin) return;
-        const amdoc = AM().load(bin);
-        return amdoc;
     }
 
 }

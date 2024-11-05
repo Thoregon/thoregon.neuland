@@ -10,7 +10,5 @@
   "author": "Bernhard Lukassen <bl@bernhard-lukassen.com> (http://www.bernhard-lukassen.com/)",
   "license": "MIT",
   "dependencies": {
-    "@automerge/automerge": "^2.0.1",
-    "peerjs-on-node": "^1.0.2"
   }
 }

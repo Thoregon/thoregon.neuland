@@ -39,14 +39,14 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
         const filepath = this.opt.filepath;
         if (!exists(filepath)) {
             if (!(await this.restoreBackup(filepath))) {
-                this.db = new Map();
+                this.db = this.newInnerDB();
                 await this.create();
             }
         } else {
             try {
                 universe.debuglog(DBGID, "load");
                 const bin = await fs.readFile(filepath);
-                this.db   = bin ? deserialize(bin) : new Map();
+                this.db   = bin ? deserialize(bin) : this.newInnerDB();
             } catch (e) {
                 debugger;
                 if (!retry) return;

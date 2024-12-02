@@ -39,6 +39,14 @@ export default class NeulandStorageAdapter {
     }
 
     //
+    // DB type
+    //
+
+    newInnerDB() {
+        return new Map();
+    }
+
+    //
     // items
     //
 
@@ -56,7 +64,7 @@ export default class NeulandStorageAdapter {
 
     set(soul, item) {
         let db = this.db;
-        if (!db) db = this.db = new Map();
+        if (!db) db = this.db = this.newInnerDB();
         db.set(soul, item);
     }
 

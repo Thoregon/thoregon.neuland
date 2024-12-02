@@ -28,10 +28,13 @@ export default class NeulandDB {
         WRITE_COUNT    = storageOpt.writeCount ?? WRITE_COUNT;
         WRITE_INTERVAL = storageOpt.writeInterval ?? WRITE_INTERVAL;
         this.opt = { ...NEULAND_STORAGE_OPT, ...storageOpt };
+        this.name = (storageOpt.name ?? 'neuland');
         this.storage = new StorageAdapter();
         this.storage.init(this.opt);
-        const name = '$' + (storageOpt.name ?? 'neuland');
-        universe[name] = this;   // universe.$neuland = this;
+        if (!this.opt.dontPublish) {
+            const name = '$' + this.name;
+            universe[name] = this;   // universe.$neuland = this;
+        }
         this.lastbackup = universe.inow;
         universe.debuglog(DBGID, "init DONE");
         return this;
@@ -49,7 +52,7 @@ export default class NeulandDB {
     }
 
     stop() {
-        if (this.autoid) clearTimeout(this.autoid);
+        if (this._autoid) clearTimeout(this._autoid);
         /*if (this.mod > 0)*/ this.storage.store(USE_BACKUP, true);
         this.ready = false;
         return this;
@@ -64,7 +67,7 @@ export default class NeulandDB {
     // management
     //
     auto() {
-        this.autoid = setTimeout(async () => {
+        this._autoid = setTimeout(async () => {
             if (this.mod > 0) {
                 this.mod = 0;
                 universe.debuglog(DBGID, "auto store");

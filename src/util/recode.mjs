@@ -9,7 +9,8 @@
 import fs              from "fs/promises";
 import { deserialize } from "v8";
 import path            from "path";
-import { Automerge }   from "/thoregon.neuland/modules/nodepeer/index.mjs";
+import { Automerge }   from "/thoregon.neuland/modules/nodepeer/automerge.mjs";
+import { timeout }     from "/evolux.universe";
 
 import { isPrivateProperty, isString } from "/evolux.util/index.mjs";
 
@@ -22,7 +23,7 @@ const OMIT_APP_ENTITIES = new Set([/*'checkoutSessions', 'checkoutSession', */'a
 // special handling
 // - CheckoutSession
 // - UnifiedFileDescriptior
-async function recreateEntity(entity, olddb, { done } = {}) {
+async function recreateEntity(entity, olddb, { done, prevsoul } = {}) {
     if (!done) done = new Map();
     const soul = entity.$soul;
     if (done.has(soul)) return done.get(soul);
@@ -42,10 +43,12 @@ async function recreateEntity(entity, olddb, { done } = {}) {
     // console.log("-- Recreate", soul, entity.$origin);
     if (entity.$origin === 'repo:/thoregon.truCloud/lib/unifiedfile/unifiedfiledescriptor.mjs:UnifiedFileDescriptor') {
         // debugger;
-        return { UFD: true };
+        return; // { UFD: true };
     } else if (entity.$origin === 'repo:/easypay-checkout-session/checkoutsession.mjs:CheckoutSession') {
         // debugger;
-        return { CheckoutSession: true };
+        return; // { CheckoutSession: true };
+    } else if (entity.$origin.indexOf('PaymentPlanDefinition') > -1) {
+        recreated.$origin = 'repo:/easypay-module-paymentplan/paymentplansinglepayment.mjs:PaymentPlanSinglePayment';
     }
 
     const propnames = getPropertiesToInclude(entity).filter((property) => !OMIT_APP_ENTITIES.has(property));
@@ -58,7 +61,7 @@ async function recreateEntity(entity, olddb, { done } = {}) {
         } else {
             const refentity = getRefEntity(propval, olddb);
             const entity = await recreateEntity(refentity, olddb, { done });
-            recreated[property] = entity;
+            if (entity != undefined) recreated[property] = entity;
         }
         // console.log("-- Set prop", property);
     }
@@ -69,6 +72,10 @@ async function recreateEntity(entity, olddb, { done } = {}) {
 async function recreateMediathek(identity, olddb) {
     // mediathek
     const mediathek = getRefEntity(identity.mediathek, olddb);
+    if (!mediathek || !mediathek.cids) {
+        console.log("Mediathek not recreated");
+        return;
+    }
     const cidsrefs  = getRefEntity(mediathek.cids, olddb);
     const cids      = getPropertiesToInclude(cidsrefs);
     debugger;
@@ -78,23 +85,25 @@ async function buildMediathek(mediathek) {
 
 }
 
-export default async (anchor) => {
+export default async (prevanchor, anchor, dbpath, recodefn) => {
     console.log("$$ Recode DB", anchor);
     try {
-        const filepath = path.resolve('./datatest/neuland_am.tdb');
+        // nexus: ./datatest/neuland_nexus_2024_10_12.tdb
+        // erika: ./datatest/neuland_2024-10-08_093153_407.tdb
+        const filepath = path.resolve(dbpath);     //  neuland_am.tdb
         const bindb      = await fs.readFile(filepath);
         const olddb       = deserialize(bindb);
 
         console.log("-- DB loaded");
 
-        if (!olddb.has(anchor)) {
+        if (!olddb.has(prevanchor)) {
             console.error(">> Anchor could not be loaded");
             return;
         }
 
         const neulandDB = new Map();
 
-        let bin = olddb.get(anchor);
+        let bin = olddb.get(prevanchor);
         const identity = Automerge.load(bin)
         if (!identity) {
             console.error(">> Identiy could not be loaded");
@@ -105,9 +114,12 @@ export default async (anchor) => {
 
         console.log("-- Identiy");
         const done = new Map();
-        const ssi= await recreateEntity(identity, olddb, { done });
-        console.log("-- Mediathek");
-        const mediathek = await recreateMediathek(identity, olddb);
+        const prevssi= await recreateEntity(identity, olddb, { done });
+        const ssi = await recodefn(prevssi);
+        await ssi.materialize();
+        await timeout(600);
+//        console.log("-- Mediathek");
+//        const mediathek = await recreateMediathek(identity, olddb);
     } catch (e) {
         console.error('>> ERROR', e, e.stack);
     } finally {

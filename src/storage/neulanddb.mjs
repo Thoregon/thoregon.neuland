@@ -51,9 +51,9 @@ export default class NeulandDB {
         return this;
     }
 
-    stop() {
+    async stop() {
         if (this._autoid) clearTimeout(this._autoid);
-        /*if (this.mod > 0)*/ this.storage.store(USE_BACKUP, true);
+        /*if (this.mod > 0)*/ await this.storage.store(USE_BACKUP, true);
         this.ready = false;
         return this;
     }

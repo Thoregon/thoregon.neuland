@@ -69,7 +69,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
         console.log("== Neuland: start storing (store)");
         universe.debuglog(DBGID, "store");
         try {
-            if (backup) await this.backup(universe.nowFormated);
+            if (backup) await this.backup();
             const db = this.db;
             if (!db) return;
             const bin = serialize(db);
@@ -86,7 +86,8 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             }
             universe.debuglog(DBGID, "store done");
         } catch (e) {
-            await this.backup(universe.nowFormated);
+            this.storing = false;
+            await this.backup();
             debugger;
             console.log(e);
         } finally {
@@ -103,6 +104,8 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             const db = this.db;
             if (!db) return;
             const bin = serialize(db);
+            const createpath = this.opt.directory;
+            if (!fs.existsSync(createpath)) fs.mkdirSync(createpath, { recursive: true });
             await fs.writeFile(this.opt.filepath, bin);
         } catch (e) {
             console.log(e);
@@ -112,14 +115,17 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
         }
     }
 
-    async backup(id) {
+    async backup(withTimestamp = false) {
         try {
-            const size = await fs.stat(this.opt.filepath);
-            if (size < 1) {
+            const stats = await fs.stat(this.opt.filepath);
+            if (stats.size < 5) {
                 console.log("DB corrupted");
                 debugger;
                 return;
             }
+            const backupdir = `${this.opt.directory}/backup`;
+            if (!fs.existsSync(backupdir)) fs.mkdirSync(backupdir, { recursive: true });
+            const id = withTimestamp ? universe.nowFormated : '';
             const backuppath = this.getBackupFilepath(id);
             await fs.copyFile(this.opt.filepath, backuppath);
             universe.debuglog(DBGID, "backup done");
@@ -135,6 +141,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             universe.debuglog(DBGID, "restore backup");
             if (exists(filepath)) await fs.unlink(filepath);
             await fs.copyFile(backuppath, filepath);
+            await this.backup(true);    //  save a copy from the old back to rollback eventually later
             universe.debuglog(DBGID, "restore backup done");
             return true;
         } catch (e) {
@@ -145,7 +152,9 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
 
     getBackupFilepath(id) {
         const { directory, name } = this.opt;
-        const backup = `${directory}/backup/${name ?? 'neuland'}_bak.tdb`; // `${directory}/backup/${name ?? 'neuland'}_${id}.tdb`;    // `${directory}/backup/${name ?? 'neuland'}_${id}.tdb`
+        const backup = id
+                       ? `${directory}/backup/${name ?? 'neuland'}_${id}.tdb`
+                       : `${directory}/backup/${name ?? 'neuland'}_bak.tdb`;
         return backup;
     }
 

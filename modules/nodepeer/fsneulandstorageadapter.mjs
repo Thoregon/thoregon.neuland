@@ -105,7 +105,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             if (!db) return;
             const bin = serialize(db);
             const createpath = this.opt.directory;
-            if (!sfs.existsSync(createpath)) fs.mkdirSync(createpath, { recursive: true });
+            if (!sfs.existsSync(createpath)) sfs.mkdirSync(createpath, { recursive: true });
             await fs.writeFile(this.opt.filepath, bin);
         } catch (e) {
             console.error(e, e.stack);
@@ -124,7 +124,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
                 return;
             }
             const backupdir = `${this.opt.directory}/backup`;
-            if (!sfs.existsSync(backupdir)) fs.mkdirSync(backupdir, { recursive: true });
+            if (!sfs.existsSync(backupdir)) sfs.mkdirSync(backupdir, { recursive: true });
             const id = withTimestamp ? universe.nowFormated : '';
             const backuppath = this.getBackupFilepath(id);
             await fs.copyFile(this.opt.filepath, backuppath);

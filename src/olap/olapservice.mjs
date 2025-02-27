@@ -130,7 +130,7 @@ export default class OLAPService {
                         console.log(">> OLAPService: migration update: no table or where specified");
                     }
                 } else if (migrationstep.js) {
-                    console.log("-- OLAPService: migration JS: ", migrationstep.js(connection, migrationstep.params));
+                    console.log("-- OLAPService: migration JS: ", await migrationstep.js(connection, migrationstep.params, this.home));
                 } else if (migrationstep.table && migrationstep.columns) {
                     await this.initTable(migrationstep.table, migrationstep.columns);
                 } else {
@@ -282,6 +282,11 @@ export default class OLAPService {
         let result;
         for (let i = 0; i < statements.count; i++) {
             const stmt = await statements.prepare(i);
+            for (let i = 1; i <= stmt.parameterCount; i++) {
+                const value = params[i-1];
+                this._bindValue(stmt, i, value);
+                // stmt.bind(i, value);
+            }
             result = await stmt.run(sql, params);
         }
         // const result = await connection.run(sql, params);
@@ -328,6 +333,21 @@ export default class OLAPService {
         if (typeof value === 'boolean') return DuckDBBooleanType.instance;
         // if (value instanceof Date) return DuckDBTimestampType.instance;
         return DuckDBVarCharType.instance;
+    }
+
+    _bindValue(stmt, idx, value) {
+        if (value == undefined) return ; // todo
+        if (typeof value === 'number') {
+            if (value % 1 === 0) {
+                stmt.bindInteger(idx, value);
+            } else {
+                stmt.bindDouble(idx, value);
+            }
+            return;
+        }
+        if (typeof value === 'boolean') return stmt.bindBoolean(idx, value);
+        if (value instanceof Date) return stmt.bindVarchar(idx, value.toISOString());
+        stmt.bindVarchar(idx, value);
     }
 
     _asSQLValues(values) {

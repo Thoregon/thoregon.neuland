@@ -225,6 +225,18 @@ export default class OLAPService {
         return this.exec(sql, values, types);
     }
 
+    async get(table, where) {
+        let sql = `SELECT * FROM ${table} `;
+
+        const whereFields = Object.entries(where);
+        sql += ' WHERE ' + whereFields.map(([name, value]) => `${name} = ?`).join(' AND ');
+        // console.log("-- OLAPService: update SQL: ", sql);
+
+        const values = this._asSQLValues([...(Object.values(where))]);
+
+        return await this.query(sql, values);
+    }
+
     update(table, where, data) {
         let sql = `UPDATE ${table} SET `;
         const setFields = Object.keys(data);
@@ -276,6 +288,8 @@ export default class OLAPService {
      * @param params
      * @returns {Promise<*[]>}
      */
+
+
     async query(sql, params = []) {
         console.log("-- OLAPService: query SQL: ", sql, JSON.stringify(params));
         const statements = await connection.extractStatements(sql, params);

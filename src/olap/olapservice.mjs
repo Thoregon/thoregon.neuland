@@ -200,7 +200,7 @@ export default class OLAPService {
      * @param replace
      * @returns {Promise<unknown>}
      */
-    insert(table, data, { replace = false } = {}) {
+    async insert(table, data, { replace = false } = {}) {
         let sql = `INSERT ${replace ? 'OR REPLACE' : ''} INTO ${table} `;
 
         // todo: filter all 'null/undefined' values
@@ -222,7 +222,7 @@ export default class OLAPService {
         const values = this._asSQLValues(data);
         const types = this._getDBTypes(values);
 
-        return this.exec(sql, values, types);
+        return await this.exec(sql, values, types);
     }
 
     async get(table, where) {
@@ -237,7 +237,7 @@ export default class OLAPService {
         return await this.query(sql, values);
     }
 
-    update(table, where, data) {
+    async update(table, where, data) {
         let sql = `UPDATE ${table} SET `;
         const setFields = Object.keys(data);
         sql += setFields.map((name) => `${name} = ?`).join(', ');
@@ -249,7 +249,7 @@ export default class OLAPService {
         const values = this._asSQLValues([...(Object.values(data)), ...(Object.values(where))]);
         const types = this._getDBTypes(values);
 
-        return this.exec(sql, values, types);
+        return await this.exec(sql, values, types);
     }
 
     /**
@@ -291,7 +291,7 @@ export default class OLAPService {
 
 
     async query(sql, params = []) {
-        console.log("-- OLAPService: query SQL: ", sql, JSON.stringify(params));
+        // console.log("-- OLAPService: query SQL: ", sql, JSON.stringify(params));
         const statements = await connection.extractStatements(sql, params);
         let result;
         for (let i = 0; i < statements.count; i++) {

@@ -106,7 +106,7 @@ export default class OLAPService {
             const migration = this.settings.migration[nextMigrateVersion];
             if (migration) await this.doMigration(migration);
             nextMigrateVersion++;
-        } while (requiredVersion > nextMigrateVersion);
+        } while (requiredVersion >= nextMigrateVersion);
 
         await fs.writeFile(olapsettingsfile, `export default { version: ${requiredVersion} }`, { encoding: 'utf8' });
     }
@@ -371,7 +371,7 @@ export default class OLAPService {
 
     _asSQLValue(value) {
         if (value === undefined) return ''; // null;
-        if (typeof value === 'number') return value.toString();
+        if (typeof value === 'number') return value;
         if (typeof value === 'boolean') return value.toString();
         if (value instanceof Date) return value.toISOString();
         return value.toString();
@@ -384,7 +384,7 @@ export default class OLAPService {
 
     _asSQLStmtValue(value) {
         if (value === undefined) return 'NULL';
-        if (typeof value === 'number') return value.toString();
+        if (typeof value === 'number') return value;
         if (typeof value === 'boolean') return value.toString();
         if (value instanceof Date) return `'${value.toISOString()}'`;
         return `'${value}'`;

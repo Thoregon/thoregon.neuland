@@ -342,7 +342,7 @@ export default class OLAPService {
     _getDBType(value) {
         if (value == undefined) return DuckDBSQLNullType.instance;
         if (typeof value === 'number') {
-            return value % 1 === 0 ? DuckDBIntegerType.instance : new DuckDBDecimalType(18,3);
+            return value % 1 === 0 ? DuckDBIntegerType.instance : DuckDBDoubleType.instance; // new DuckDBDecimalType(18,3);
         }
         if (typeof value === 'boolean') return DuckDBBooleanType.instance;
         // if (value instanceof Date) return DuckDBTimestampType.instance;

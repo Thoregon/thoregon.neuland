@@ -177,7 +177,7 @@ export default class OLAPService {
         const columns   = tabledef.filter((item) => item.name).map(item => `${item.name} ${item.def}`);
         const defs      = tabledef.filter((item) => item.def && !item.name).map(item => item.def).join(', ');
         const cmds      = tabledef.filter((item) => item.cmd).map(item => item.cmd);
-        const createsql = `CREATE TABLE IF NOT EXISTS ${tablename} (${columns.join(', ')}${defs ? ', ' + defs : ''});`;
+        const createsql = `CREATE OR REPLACE TABLE ${tablename} (${columns.join(', ')}${defs ? ', ' + defs : ''});`;
         console.log("SQL> ", createsql);
         try {
             await connection.run(createsql);

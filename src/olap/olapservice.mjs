@@ -341,9 +341,9 @@ export default class OLAPService {
 
     _getDBType(value) {
         if (value == undefined) return DuckDBSQLNullType.instance;
-        if (typeof value === 'number') {
-            return value % 1 === 0 ? DuckDBIntegerType.instance : DuckDBDoubleType.instance; // new DuckDBDecimalType(18,3);
-        }
+        // if (typeof value === 'number') {
+        //     return value % 1 === 0 ? DuckDBIntegerType.instance : DuckDBDoubleType.instance; // new DuckDBDecimalType(18,3);
+        // }
         if (typeof value === 'boolean') return DuckDBBooleanType.instance;
         // if (value instanceof Date) return DuckDBTimestampType.instance;
         return DuckDBVarCharType.instance;
@@ -371,7 +371,7 @@ export default class OLAPService {
 
     _asSQLValue(value) {
         if (value === undefined) return ''; // null;
-        if (typeof value === 'number') return value;
+        // if (typeof value === 'number') return value;
         if (typeof value === 'boolean') return value.toString();
         if (value instanceof Date) return value.toISOString();
         return value.toString();
@@ -384,7 +384,7 @@ export default class OLAPService {
 
     _asSQLStmtValue(value) {
         if (value === undefined) return 'NULL';
-        if (typeof value === 'number') return value;
+        if (typeof value === 'number') return value.toString();
         if (typeof value === 'boolean') return value.toString();
         if (value instanceof Date) return `'${value.toISOString()}'`;
         return `'${value}'`;

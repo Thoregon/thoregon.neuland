@@ -351,17 +351,17 @@ export default class OLAPService {
 
     _bindValue(stmt, idx, value) {
         if (value == undefined) return ; // todo
-        if (typeof value === 'number') {
-            if (value % 1 === 0) {
-                stmt.bindInteger(idx, value);
-            } else {
-                stmt.bindDouble(idx, value);
-            }
-            return;
-        }
+        // if (typeof value === 'number') {
+        //     if (value % 1 === 0) {
+        //         stmt.bindInteger(idx, value);
+        //     } else {
+        //         stmt.bindDouble(idx, value);
+        //     }
+        //     return;
+        // }
         if (typeof value === 'boolean') return stmt.bindBoolean(idx, value);
         if (value instanceof Date) return stmt.bindVarchar(idx, value.toISOString());
-        stmt.bindVarchar(idx, value);
+        stmt.bindVarchar(idx, value.toString());
     }
 
     _asSQLValues(values) {

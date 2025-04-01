@@ -318,6 +318,27 @@ export default class OLAPService {
         return { columnNames, rows };
     }
 
+    convertToObjects(result, defaults = {}) {
+
+        const columns = result.columnNames;
+        const rows    = result.rows;
+
+        return rows.map(row => {
+            return Object.fromEntries(
+                columns.map((col, index) => {
+                    let value = row[index] !== undefined ? row[index] : defaults[col] || null;
+
+                    // Convert DuckDB TIMESTAMP object `{ micros: 1719758700000000n }` to JavaScript timestamp (milliseconds)
+                    if (typeof value === "object" && value !== null && "micros" in value) {
+                        value = Number(value.micros) / 1000; // Convert microseconds → milliseconds
+                    }
+
+                    return [col, value];
+                })
+            );
+        });
+    }
+
     async read(sql, params = []) {
         // console.log("-- OLAPService: read SQL: ", sql, JSON.stringify(params));
         const reader = await connection.runAndRead(sql, params);

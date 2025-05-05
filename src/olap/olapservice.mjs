@@ -320,6 +320,7 @@ export default class OLAPService {
 
     convertToObjects(result, defaults = {}) {
 
+        //--- TEMP: Comment for PUSH
         const columns = result.columnNames;
         const rows    = result.rows;
 

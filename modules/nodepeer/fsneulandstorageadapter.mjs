@@ -62,11 +62,11 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
 
     async store(backup = true, force = false) {
         if (this.storing && !force) {
-            console.log("== Neuland: not stored, store while storing");
+            // console.log("== Neuland: not stored, store while storing");
             return false;
         }
         this.storing = true;
-        console.log("== Neuland: start storing (store)");
+        // console.log("== Neuland: start storing (store)");
         universe.debuglog(DBGID, "store");
         try {
             if (backup) await this.backup();
@@ -81,7 +81,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             await fs.writeFile(this.opt.filepath, bin);
             const size = await fs.stat(this.opt.filepath);
             if (size < 6) {
-                console.log("DB corrupted");
+                console.error(">> Neuland: DB corrupted");
                 debugger;
             }
             universe.debuglog(DBGID, "store done");

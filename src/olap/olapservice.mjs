@@ -217,7 +217,7 @@ export default class OLAPService {
             sql += '(' + names.join(', ') + ') ';
             sql += 'VALUES (' + new Array(data.length).fill('?').join(", ") + ')'
         }
-        if (!replace) sql += ' ON CONFLICT DO NOTHING';
+        // if (!replace) sql += ' ON CONFLICT DO NOTHING';
 
         const values = this._asSQLValues(data);
         const types = this._getDBTypes(values);

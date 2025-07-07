@@ -237,6 +237,13 @@ export default class OLAPService {
         return await this.query(sql, values);
     }
 
+    async current(sequencename){
+        const sql = `SELECT currval('${sequencename}') AS currval;`;
+        const res = await this.query(sql);
+        const row = res?.rows?.[0];
+        return row ? row[0] : -1;
+    }
+
     async update(table, where, data) {
         let sql = `UPDATE ${table} SET `;
         const setFields = Object.keys(data);
@@ -372,7 +379,7 @@ export default class OLAPService {
     }
 
     _bindValue(stmt, idx, value) {
-        if (value == undefined) return ; // todo
+        if (value == undefined) return stmt.bindNull(idx) ; // todo
         // if (typeof value === 'number') {
         //     if (value % 1 === 0) {
         //         stmt.bindInteger(idx, value);

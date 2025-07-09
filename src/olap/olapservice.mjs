@@ -130,7 +130,7 @@ export default class OLAPService {
                         console.log(">> OLAPService: migration update: no table or where specified");
                     }
                 } else if (migrationstep.js) {
-                    console.log("-- OLAPService: migration JS: ", await migrationstep.js(connection, migrationstep.params, this.home));
+                    console.log("-- OLAPService: migration JS: ", await migrationstep.js(this, migrationstep.params, this.home));
                 } else if (migrationstep.table && migrationstep.columns) {
                     await this.initTable(migrationstep.table, migrationstep.columns);
                 } else {
@@ -197,14 +197,14 @@ export default class OLAPService {
      *
      * @param table
      * @param data      ... can be an array, inserts the values by position of columns. otherwise can be an object, property named will be treated as colum names
-     * @param replace
+     * @param replace   ... do a replace instead of an insert
+     * @param sequence  ... return the current value of the specified sequence
      * @returns {Promise<unknown>}
      */
-    async insert(table, data, { replace = false } = {}) {
+    async insert(table, data, { replace = false/*, sequence*/ } = {}) {
         let sql = `INSERT ${replace ? 'OR REPLACE' : ''} INTO ${table} `;
 
         // todo: filter all 'null/undefined' values
-
         if (Array.isArray(data)) {
             data = [...data];
             if (data.length < 0) return;
@@ -219,10 +219,16 @@ export default class OLAPService {
         }
         // if (!replace) sql += ' ON CONFLICT DO NOTHING';
 
+        // if (sequence) sql += `; SELECT currval('${sequence}') as curr`;
+
         const values = this._asSQLValues(data);
         const types = this._getDBTypes(values);
 
-        return await this.exec(sql, values, types);
+        let res = await this.exec(sql, values, types);
+
+        // if (sequence) res = (await this._buildResult(res).rows?.[0]?.[0]) ?? -1
+
+        return res;
     }
 
     async get(table, where) {
@@ -311,8 +317,12 @@ export default class OLAPService {
             result = await stmt.run(sql, params);
         }
         // const result = await connection.run(sql, params);
+        return await this._buildResult(result);
+    }
+
+    async _buildResult(result) {
         const columnNames = result.columnNames();
-        const rows = [];
+        const rows        = [];
         while (true) {
             const chunk = await result.fetchChunk();
             // Last chunk will have zero rows.

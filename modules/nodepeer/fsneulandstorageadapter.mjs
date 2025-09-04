@@ -29,7 +29,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
         this.storing = false;
         ensureDir(location);
         ensureDir(`${location}/backup`);
-        universe.debuglog(DBGID, "FS adapter init DONE");
+        universe.debuglog(DBGID, "FS adapter init DONE", this.opt.filepath);
     }
 
     //
@@ -39,7 +39,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
     async load(retry = true) {
         const filepath = this.opt.filepath;
         if (!exists(filepath)) {
-            if (!(await this.restoreBackup(filepath))) {
+            if (this.isPROD || !(await this.restoreBackup(filepath))) {
                 this.db = this.newInnerDB();
                 await this.create();
             }
@@ -48,14 +48,18 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
                 universe.debuglog(DBGID, "load");
                 const bin = await fs.readFile(filepath);
                 this.db   = bin ? deserialize(bin) : this.newInnerDB();
+                return true;
             } catch (e) {
-                if (!retry) return;
+                if (!retry || this.isPROD) {
+                    console.error("**** Neuland DB could not be loaded", e, e.stack);
+                    return false;
+                }
                 universe.debuglog(DBGID, "FSNeulandStorageAdapter can't open DB file", e);
                 if (retry) {
                     await fs.unlink(filepath);
                     await this.restoreBackup(filepath);
                 }
-                await this.load(false);
+                return await this.load(false);
             }
         }
     }
@@ -87,6 +91,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             universe.debuglog(DBGID, "store done");
         } catch (e) {
             this.storing = false;
+            await this.currentBackupWithTimeStamp();
             await this.backup();
             debugger;
             console.error(e, e.stack);
@@ -95,6 +100,10 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             this.storing = false;
         }
         return true;
+    }
+
+    get isPROD() {
+        return universe.stage === 'PROD';
     }
 
     async create() {
@@ -127,10 +136,23 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             if (!sfs.existsSync(backupdir)) sfs.mkdirSync(backupdir, { recursive: true });
             const id = withTimestamp ? universe.nowFormated : '';
             const backuppath = this.getBackupFilepath(id);
+            if (withTimestamp) {
+                console.trace("**TRACE: FSNeulandStorageAdapter backup", this.opt.filepath, backuppath);
+            }
             await fs.copyFile(this.opt.filepath, backuppath);
             universe.debuglog(DBGID, "backup done");
         } catch (e) {
             console.error(e, e.stack);
+        }
+    }
+
+    async currentBackupWithTimeStamp() {
+        const backuppath = this.getBackupFilepath();
+        const backuppathts = this.getBackupFilepath(universe.nowFormated);
+        try {
+            await fs.rename(backuppath, backuppathts);
+        } catch (e) {
+            console.error("could not save previous backup", e, e.stack);
         }
     }
 
@@ -139,13 +161,15 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
         if (!exists(backuppath)) return false;
         try {
             universe.debuglog(DBGID, "restore backup");
+            console.trace("**TRACE: FSNeulandStorageAdapter restore backup", this.opt.filepath, backuppath);
             if (exists(filepath)) await fs.unlink(filepath);
             await fs.copyFile(backuppath, filepath);
             await this.backup(true);    //  save a copy from the old back to rollback eventually later
+            console.log("FSNeulandStorageAdapter restore backup DONE");
             universe.debuglog(DBGID, "restore backup done");
             return true;
         } catch (e) {
-            console.error(e, e.stack);
+            console.error("FSNeulandStorageAdapter restore backup ERROR", e, e.stack);
             universe.debuglog(DBGID, "restore backup error", e);
             return false;
         }

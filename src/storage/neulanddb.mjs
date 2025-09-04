@@ -42,8 +42,12 @@ export default class NeulandDB {
 
     async start() {
         universe.debuglog(DBGID, "start");
-        await this.storage.load();
-        this.ready = true;
+        const ok = await this.storage.load();
+        this.ready = ok;
+        if (!ok) {
+            universe.debuglog(DBGID, "start DONE");
+            return;
+        }
         this.auto();
         this._onready?.(this);
         delete this._onready;

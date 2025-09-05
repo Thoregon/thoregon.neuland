@@ -50,7 +50,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
                 this.db   = bin ? deserialize(bin) : this.newInnerDB();
                 return true;
             } catch (e) {
-                if (!retry || this.isPROD) {
+                if (!retry/* || this.isPROD*/) {
                     console.error("**** Neuland DB could not be loaded", e, e.stack);
                     return false;
                 }
@@ -164,7 +164,7 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
             console.trace("**TRACE: FSNeulandStorageAdapter restore backup", this.opt.filepath, backuppath);
             if (exists(filepath)) await fs.unlink(filepath);
             await fs.copyFile(backuppath, filepath);
-            await this.backup(true);    //  save a copy from the old back to rollback eventually later
+            if (!this.isPROD) await this.backup(true);    //  save a copy from the old back to rollback eventually later
             console.log("FSNeulandStorageAdapter restore backup DONE");
             universe.debuglog(DBGID, "restore backup done");
             return true;

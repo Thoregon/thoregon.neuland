@@ -58,6 +58,7 @@ export default class NeulandDB {
     async stop() {
         if (this._autoid) clearTimeout(this._autoid);
         /*if (this.mod > 0)*/ await this.storage.store(USE_BACKUP, true);
+        await this.storage.close();
         this.ready = false;
         return this;
     }
@@ -140,4 +141,27 @@ export default class NeulandDB {
         this.modified(opt);
     }
 
+    //
+    // migration
+    //
+
+    async migrateTo(TargetStorageAdapter) {
+        const target = new TargetStorageAdapter();
+        target.init(this.opt)
+        const ok = await this.storage.load();
+        if (!ok) return console.warn("NeulandDB: can't migrate, target not ready");
+
+        const keys = this.keys();
+        let i = 0;
+        for (const key of keys) {
+            const val = this.get(key);
+            if (!val) continue;
+            target.set(key, val);
+            i++;
+        }
+
+        const stored = await target.store();
+        await target.close();
+        console.log("NeulandDB: migration done:", stored, "#", i);
+    }
 }

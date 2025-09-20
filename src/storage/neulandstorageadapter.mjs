@@ -28,6 +28,10 @@ export default class NeulandStorageAdapter {
         // implement by subclass
     }
 
+    async close() {
+        // implement by subclass
+    }
+
     keys() {
         const db = this.db;
         return db.keys();

@@ -10,11 +10,17 @@
  * @see: {@link https://github.com/Thoregon}
  */
 
-import { Service, Attach } from "/thoregon.truCloud";
-import { cleanObject }     from "/evolux.util/lib/objutils.mjs";
-import { DuckDBInstance, DuckDBTypeId, DuckDBVarCharType, DuckDBBooleanType, DuckDBIntegerType, DuckDBDoubleType, DuckDBTimestampType, DuckDBDateType, DuckDBTimeType, DuckDBIntervalType, DuckDBDecimalType, DuckDBEnumType, DuckDBAnyType, DuckDBBlobType, DuckDBSQLNullType }  from "/@duckdb/node-api";
+import { Service, Attach }   from "/thoregon.truCloud";
+import { cleanObject }       from "/evolux.util/lib/objutils.mjs";
+import sfs                   from "fs";
+// import sqlite3             from 'sqlite3';
+// import { open }            from 'sqlite';
+// import Database              from 'better-sqlite3';
+// import { DatabaseSync }      from 'node:sqlite';
+const Database = universe.nodeVersion >= 24
+                 ? (await import('node:sqlite')).DatabaseSync
+                 : (await import('better-sqlite3')).default;
 
-let db;
 let connection;
 
 
@@ -37,13 +43,12 @@ export default class OLAPService {
         this.instance = appinstance;
         this.home     = home;
         await this.init(handle.settings);
-        console.log(">> OLAPService", appinstance.qualifier);
+        console.log(">> OLAPService (SQLite)", appinstance.qualifier);
     }
 
     async deactivate() {
         // run downcmds
-
-        connection?.close();
+        await connection?.close();
     }
 
     async init(settings) {
@@ -55,17 +60,13 @@ export default class OLAPService {
         const stat = await fsstat(dir);
         if (!stat) await fs.mkdir(dir, { recursive: true });
         const dbname = settings?.db ?? 'olap';
-        const dbfile = path.resolve(dir, `${dbname}.db`);
-        db = await this.openDB(dbfile);
-        connection = await db.connect();
+        const dbfile = path.resolve(dir, `${dbname}.sqlite`);
+        connection = await this.openDB(dbfile);
 
         // run upcmds
 
         await this.checkMigration();
 
-        // const tables = settings?.tables;
-        // if (!tables) return;
-        // await this.initTables(tables);
     }
 
     async checkMigration() {
@@ -81,7 +82,7 @@ export default class OLAPService {
                 const olapetc = module.default;
                 currentVersion = olapetc?.version;
             } catch (e) {
-                console.error(">> OLAPService: can't read olap version file", e);
+                console.error(">> OLAPService (SQLLite): can't read olap version file", e);
             }
         }
 
@@ -115,26 +116,26 @@ export default class OLAPService {
         for await (const migrationstep of migration) {
             try {
                 if (migrationstep.sql) {
-                    console.log("-- OLAPService: migration SQL: ", migrationstep.sql);
+                    console.log("-- OLAPService (SQLLite): migration SQL: ", migrationstep.sql);
                     await this.exec(migrationstep.sql);
                 } else if (migrationstep.insert) {
                     if (migrationstep.table) {
                         await this.insert(migrationstep.table, migrationstep.insert);
                     } else {
-                        console.log(">> OLAPService: migration insert: no table specified");
+                        console.log(">> OLAPService (SQLLite): migration insert: no table specified");
                     }
                 } else if (migrationstep.update) {
                     if (migrationstep.table || !migrationstep.set) {
                         await this.update(migrationstep.table, migrationstep.update, migrationstep.set);
                     } else {
-                        console.log(">> OLAPService: migration update: no table or where specified");
+                        console.log(">> OLAPService (SQLLite): migration update: no table or where specified");
                     }
                 } else if (migrationstep.js) {
-                    console.log("-- OLAPService: migration JS: ", await migrationstep.js(this, migrationstep.params, this.home));
+                    console.log("-- OLAPService (SQLLite): migration JS: ", await migrationstep.js(this, migrationstep.params, this.home));
                 } else if (migrationstep.table && migrationstep.columns) {
                     await this.initTable(migrationstep.table, migrationstep.columns);
                 } else {
-                    console.error(">> OLAPService: unknown migration step", JSON.stringify(migrationstep));
+                    console.error(">> OLAPService (SQLLite): unknown migration step", JSON.stringify(migrationstep));
                 }
             } catch (e) {
                 console.error("** OLAPService: error while migration step", e);
@@ -143,11 +144,15 @@ export default class OLAPService {
     }
 
     async openDB(dbfile) {
-        const db = await DuckDBInstance.create(dbfile,  {
-            "access_mode": "READ_WRITE",
-            "threads": "4"
-        });
-
+        const mkdb     = !sfs.existsSync(dbfile);
+        const db =  new Database(dbfile);
+        if (mkdb) {
+            if (universe.nodeVersion >= 24) {
+                db.exec('PRAGMA journal_mode = WAL');
+            } else {
+                db.pragma('journal_mode = WAL');
+            }
+        }
         return db;
     }
 
@@ -155,53 +160,35 @@ export default class OLAPService {
         return db;
     }
 
-    //
-    //
-    //
-
-    async exportDB(dir) {
-        // EXPORT DATABASE 'target_directory' (FORMAT csv, DELIMITER '|');
-        const res = await this.exec(`EXPORT DATABASE '${dir}'`);
-        return res;
-    }
-    //
-    //
-    //
-
     async getTables() {
         const tables = [];
-        const { columnNames, rows } = await this.query('SELECT * FROM information_schema.tables');
+        const { columnNames, rows } = await this.query("select * from sqlite_schema where type='table' and name not like 'sqlite_%'");
         for (const row of rows) {
-            tables.push({ name: row[2], catalog: row[1], schema: row[0] });
+            tables.push({ name: row.name, catalog: 'upayme', schema: 'upayme' });
         }
         return tables;
-    }
-
-    async initTables(tables) {
-        const tablenames = Object.keys(tables);
-
-        for await (const tablename of tablenames) {
-            const tabledef = tables[tablename];
-            await this.initTable(tablename, tabledef);
-        }
     }
 
     async initTable(tablename, tabledef) {
         const columns   = tabledef.filter((item) => item.name).map(item => `${item.name} ${item.def}`);
         const defs      = tabledef.filter((item) => item.def && !item.name).map(item => item.def).join(', ');
         const cmds      = tabledef.filter((item) => item.cmd).map(item => item.cmd);
-        const createsql = `CREATE OR REPLACE TABLE ${tablename} (${columns.join(', ')}${defs ? ', ' + defs : ''});`;
+        const createsql = `CREATE TABLE ${tablename} (${columns.join(', ')}${defs ? ', ' + defs : ''});`;
         console.log("SQL> ", createsql);
         try {
-            await connection.run(createsql);
+            connection.prepare(createsql).run();
+            // await connection.exec(createsql);
             for await (const cmd of cmds) {
                 console.log("SQL CMD> ", cmd);
-                await connection.run(cmd);
+                connection.prepare(cmd).run();
+                // await connection.exec(cmd);
             }
         } catch (e) {
             console.error(">> OLAP SQL CMD ERROR", e.stack);
         }
     }
+
+
     //
     // simplified interface
     //
@@ -230,16 +217,9 @@ export default class OLAPService {
             sql += '(' + names.join(', ') + ') ';
             sql += 'VALUES (' + new Array(data.length).fill('?').join(", ") + ')'
         }
-        // if (!replace) sql += ' ON CONFLICT DO NOTHING';
-
-        // if (sequence) sql += `; SELECT currval('${sequence}') as curr`;
 
         const values = this._asSQLValues(data);
-        const types = this._getDBTypes(values);
-
-        let res = await this.exec(sql, values, types);
-
-        // if (sequence) res = (await this._buildResult(res).rows?.[0]?.[0]) ?? -1
+        let res = await this.exec(sql, values);
 
         return res;
     }
@@ -249,18 +229,11 @@ export default class OLAPService {
 
         const whereFields = Object.entries(where);
         sql += ' WHERE ' + whereFields.map(([name, value]) => `${name} = ?`).join(' AND ');
-        // console.log("-- OLAPService: update SQL: ", sql);
+        // console.log("-- OLAPService (SQLLite): update SQL: ", sql);
 
         const values = this._asSQLValues([...(Object.values(where))]);
 
         return await this.query(sql, values);
-    }
-
-    async current(sequencename){
-        const sql = `SELECT currval('${sequencename}') AS currval;`;
-        const res = await this.query(sql);
-        const row = res?.rows?.[0];
-        return row ? row[0] : -1;
     }
 
     async update(table, where, data) {
@@ -270,12 +243,11 @@ export default class OLAPService {
 
         const whereFields = Object.entries(where);
         sql += ' WHERE ' + whereFields.map(([name, value]) => `${name} = ?`).join(' AND ');
-        // console.log("-- OLAPService: update SQL: ", sql);
+        // console.log("-- OLAPService (SQLLite): update SQL: ", sql);
 
         const values = this._asSQLValues([...(Object.values(data)), ...(Object.values(where))]);
-        const types = this._getDBTypes(values);
 
-        return await this.exec(sql, values, types);
+        return await this.exec(sql, values);
     }
 
     /**
@@ -317,74 +289,63 @@ export default class OLAPService {
 
 
     async query(sql, params = []) {
-        // console.log("-- OLAPService: query SQL: ", sql, JSON.stringify(params));
-        const statements = await connection.extractStatements(sql, params);
-        let result;
-        for (let i = 0; i < statements.count; i++) {
-            const stmt = await statements.prepare(i);
-            for (let i = 1; i <= stmt.parameterCount; i++) {
-                const value = params[i-1];
-                this._bindValue(stmt, i, value);
-                // stmt.bind(i, value);
-            }
-            result = await stmt.run(sql, params);
-        }
+        const stmt = connection.prepare(sql);
+        const result = stmt.all(...params);
+        // const result = await connection.all(sql, params);
+        return await this._buildResult(result, stmt.columns());
+    }
+
+    async _buildResult(result, columns) {
+        const columnNames = columns.map(column => column.name)
+        result.forEach(row => {
+            columnNames.forEach((column) => {
+                if (row[column] === 'true') {
+                    row[column] = true;
+                } else if (row[column] === 'false') {
+                    row[column] = false;
+                }
+            })
+        })
+        return { columnNames, rows: result };
+    }
+
+    async exec(sql, params = []) {
+        // console.log("-- OLAPService (SQLLite): exec SQL: ", sql, JSON.stringify(params));
+        const result = connection.prepare(sql).run(...params);
         // const result = await connection.run(sql, params);
-        return await this._buildResult(result);
-    }
-
-    async _buildResult(result) {
-        const columnNames = result.columnNames();
-        const rows        = [];
-        while (true) {
-            const chunk = await result.fetchChunk();
-            // Last chunk will have zero rows.
-            if (!chunk || chunk.rowCount === 0) {
-                break;
-            }
-            const crows = chunk.getRows();
-            rows.push(...crows);
-        }
-        return { columnNames, rows };
-    }
-
-    convertToObjects(result, defaults = {}) {
-
-        //--- TEMP: Comment for PUSH
-        const columns = result.columnNames;
-        const rows    = result.rows;
-
-        return rows.map(row => {
-            return Object.fromEntries(
-                columns.map((col, index) => {
-                    let value = row[index] !== undefined ? row[index] : defaults[col] || null;
-
-                    // Convert DuckDB TIMESTAMP object `{ micros: 1719758700000000n }` to JavaScript timestamp (milliseconds)
-                    if (typeof value === "object" && value !== null && "micros" in value) {
-                        value = Number(value.micros) / 1000; // Convert microseconds → milliseconds
-                    }
-
-                    return [col, value];
-                })
-            );
-        });
-    }
-
-    async read(sql, params = []) {
-        // console.log("-- OLAPService: read SQL: ", sql, JSON.stringify(params));
-        const reader = await connection.runAndRead(sql, params);
-        return reader;
-    }
-
-    async exec(sql, params = [], types) {
-        // console.log("-- OLAPService: exec SQL: ", sql, JSON.stringify(params));
-        const result = await connection.run(sql, params, types);
         return result;
     }
 
     //
     // SQL Helper
     //
+
+    convertToObjects(result, defaults = {}) {
+        const columns = result.columnNames;
+        const rows    = result.rows;
+        if (Object.keys(defaults).length === 0) return rows;
+        rows.forEach(row => {
+            columns.forEach(column => {
+                if (row[column] == undefined) row[column] = defaults[column];
+            })
+        });
+        return rows;
+    }
+
+    _asSQLValues(values) {
+        const sqlValues = values.map(value => this._asSQLValue(value));
+        return sqlValues;
+    }
+
+    _asSQLValue(value) {
+        if (value === undefined) return ''; // null;
+        // if (typeof value === 'number') return value;
+        if (typeof value === 'boolean') return value.toString();
+        if (value instanceof Date) return value.toISOString();
+        return value.toString();
+    }
+
+/*
 
     _getDBTypes(values) {
         const dbTypes = values.map(value => this._getDBType(value));
@@ -416,19 +377,6 @@ export default class OLAPService {
         stmt.bindVarchar(idx, value.toString());
     }
 
-    _asSQLValues(values) {
-        const sqlValues = values.map(value => this._asSQLValue(value));
-        return sqlValues;
-    }
-
-    _asSQLValue(value) {
-        if (value === undefined) return ''; // null;
-        // if (typeof value === 'number') return value;
-        if (typeof value === 'boolean') return value.toString();
-        if (value instanceof Date) return value.toISOString();
-        return value.toString();
-    }
-
     _asSQLStmtValues(values) {
         const sqlValues = values.map(value => this._asSQLStmtValue(value));
         return sqlValues.join(', ');
@@ -441,28 +389,8 @@ export default class OLAPService {
         if (value instanceof Date) return `'${value.toISOString()}'`;
         return `'${value}'`;
     }
+*/
 
-    //
-    // inernal
-    //
-
-    _run(fn, ...args) {
-        return new Promise((resolve, reject) => {
-            const res = fn(...args, (err) => {
-                if (err) return reject(err);
-                resolve(res);
-            })
-        })
-    }
-
-    _all(fn, ...args) {
-        return new Promise((resolve, reject) => {
-            fn(...args, (err) => {
-                if (err) return reject(err);
-                resolve(res);
-            })
-        })
-    }
 }
 
 OLAPService.checkIn(import.meta);

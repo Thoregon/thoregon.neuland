@@ -37,7 +37,7 @@ export default class OLAPService {
         this.instance = appinstance;
         this.home     = home;
         await this.init(handle.settings);
-        console.log(">> OLAPService", appinstance.qualifier);
+        console.log(">> OLAPService >> DuckDB", appinstance.qualifier);
     }
 
     async deactivate() {

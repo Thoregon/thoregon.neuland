@@ -43,7 +43,7 @@ export default class OLAPService {
         this.instance = appinstance;
         this.home     = home;
         await this.init(handle.settings);
-        console.log(">> OLAPService (SQLite)", appinstance.qualifier);
+        console.log(">> OLAPService >> SQLite Sync ++", appinstance.qualifier);
     }
 
     async deactivate() {

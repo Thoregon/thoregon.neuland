@@ -10,19 +10,18 @@
  * @see: {@link https://github.com/Thoregon}
  */
 
-import { Service, Attach }   from "/thoregon.truCloud";
-import { cleanObject }       from "/evolux.util/lib/objutils.mjs";
-import sfs                   from "fs";
-// import sqlite3             from 'sqlite3';
-// import { open }            from 'sqlite';
-// import Database              from 'better-sqlite3';
+import { Service, Attach } from "/thoregon.truCloud";
+import { cleanObject }     from "/evolux.util/lib/objutils.mjs";
+import fs                  from "fs";
+import path                from "path";
+import { isObject }        from "/evolux.util/lib/objutils.mjs";
 // import { DatabaseSync }      from 'node:sqlite';
 const Database = universe.nodeVersion >= 24
                  ? (await import('node:sqlite')).DatabaseSync
                  : (await import('better-sqlite3')).default;
 
 let connection;
-
+const preparedStatements = {};
 
 async function fsstat(path){
     const fs   = universe.fs;    // get file system
@@ -33,6 +32,11 @@ async function fsstat(path){
     return stat;
 }
 
+function prefixKeysWithColon(obj) {
+    return Object.fromEntries(
+        Object.entries(obj).map(([key, value]) => [":" + key, value])
+    );
+}
 "@Service"
 export default class OLAPService {
 
@@ -54,27 +58,74 @@ export default class OLAPService {
     async init(settings) {
         this.settings = settings;
 
-        const fs   = universe.fs;    // get file system
-        const path = universe.path;
         const dir  = (universe.NEULAND_STORAGE_OPT.location ?? 'data') + '/olap';
-        const stat = await fsstat(dir);
-        if (!stat) await fs.mkdir(dir, { recursive: true });
+        if (!fs.existsSync(dir)) await fs.mkdir(dir, { recursive: true });
         const dbname = settings?.db ?? 'olap';
         const dbfile = path.resolve(dir, `${dbname}.sqlite`);
         connection = await this.openDB(dbfile);
-
-        // run upcmds
 
         await this.checkMigration();
 
     }
 
+    hasPrepared(name) {
+        return !!preparedStatements[name];
+    }
+
+    prepare(name, sql) {
+        if (!connection) throw new Error(`SQLite DB not available`);
+        const prepared = connection.prepare(sql);
+        preparedStatements[name] = prepared;
+        return prepared;
+    }
+
+    prepared(name) {
+        return preparedStatements[name];
+    }
+
+    queryPrepared(name, params) {
+        const stmt = this.prepared(name);
+        let result;
+        if (isObject(params)) {
+            params = prefixKeysWithColon(params);
+            result = stmt.all(params);
+        } else {
+            result = stmt.all(...params);
+        }
+
+        return this._buildResult(result, stmt.columns());
+    }
+
+    queryPreparedPlus(name, sql, params) {
+        if (!this.hasPrepared(name)) this.prepare(name, sql);
+        return this.queryPrepared(name, params);
+    }
+
     async checkMigration() {
+        const currentVersion = await this.getDBVersionFromDB() ?? await this.getDBVersionFromFile();
+
+        // for migration testing:
+        // currentVersion = requiredVersion - 1;
+        const requiredVersion = this.settings.version;
+        if (requiredVersion <= currentVersion) return; // no migration needed
+
+        await this.migrate(currentVersion);
+    }
+
+    async getDBVersionFromDB() {
+        try {
+            const currentVersion = await this.query('SELECT MAX(version) as current_version FROM db_migration');
+            return currentVersion?.rows[0]?.current_version ?? 2;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    async getDBVersionFromFile() {
         const fs   = universe.fs;    // get file system
         const path = universe.path;
         const olapsettingsfile = (universe.env.etcdir ?? './etc') + '/olap.mjs';
         const stat = await fsstat(olapsettingsfile);
-        const requiredVersion = this.settings.version;
         let currentVersion;
         if (stat) {
             try {
@@ -91,28 +142,27 @@ export default class OLAPService {
             await fs.writeFile(olapsettingsfile, `export default { version: 0 }`, { encoding: 'utf8' });
             currentVersion = 0;
         }
-
-        // for migration testing:
-        // currentVersion = requiredVersion - 1;
-        if (requiredVersion <= currentVersion) return; // no migration needed
-
-        await this.migrate(currentVersion, olapsettingsfile);
+        return currentVersion;
     }
 
-    async migrate(currentVersion, olapsettingsfile) {
+    async migrate(currentVersion) {
         const fs               = universe.fs;    // get file system
         const requiredVersion  = this.settings.version;
         let nextMigrateVersion = currentVersion + 1;
         do {
             const migration = this.settings.migration[nextMigrateVersion];
-            if (migration) await this.doMigration(migration);
+            if (migration) {
+                const error = await this.doMigration(migration);
+                await this.insert('db_migration', { version: nextMigrateVersion, type: 'migration', error });
+            }
             nextMigrateVersion++;
         } while (requiredVersion >= nextMigrateVersion);
 
-        await fs.writeFile(olapsettingsfile, `export default { version: ${requiredVersion} }`, { encoding: 'utf8' });
+        // await fs.writeFile(olapsettingsfile, `export default { version: ${requiredVersion} }`, { encoding: 'utf8' });
     }
 
     async doMigration(migration) {
+        let error = '';
         for await (const migrationstep of migration) {
             try {
                 if (migrationstep.sql) {
@@ -136,15 +186,18 @@ export default class OLAPService {
                     await this.initTable(migrationstep.table, migrationstep.columns);
                 } else {
                     console.error(">> OLAPService (SQLLite): unknown migration step", JSON.stringify(migrationstep));
+                    error += `${((error.length > 0) ? '\n' : '')}unknown migration step: ${JSON.stringify(migrationstep)}`;
                 }
             } catch (e) {
                 console.error("** OLAPService: error while migration step", e);
+                error += `${((error.length > 0) ? '\n' : '')}error while migration step: ${e}, ${e.stack}}`;
             }
         }
+        return (error.length > 0) ? error : null;
     }
 
     async openDB(dbfile) {
-        const mkdb     = !sfs.existsSync(dbfile);
+        const mkdb     = !fs.existsSync(dbfile);
         const db =  new Database(dbfile);
         if (mkdb) {
             if (universe.nodeVersion >= 24) {
@@ -157,7 +210,7 @@ export default class OLAPService {
     }
 
     get db() {
-        return db;
+        return connection;
     }
 
     async getTables() {
@@ -287,15 +340,13 @@ export default class OLAPService {
      * @returns {Promise<*[]>}
      */
 
-
-    async query(sql, params = []) {
+    query(sql, params = []) {
         const stmt = connection.prepare(sql);
         const result = stmt.all(...params);
-        // const result = await connection.all(sql, params);
-        return await this._buildResult(result, stmt.columns());
+        return this._buildResult(result, stmt.columns());
     }
 
-    async _buildResult(result, columns) {
+    _buildResult(result, columns) {
         const columnNames = columns.map(column => column.name)
         result.forEach(row => {
             columnNames.forEach((column) => {
@@ -309,7 +360,7 @@ export default class OLAPService {
         return { columnNames, rows: result };
     }
 
-    async exec(sql, params = []) {
+    exec(sql, params = []) {
         // console.log("-- OLAPService (SQLLite): exec SQL: ", sql, JSON.stringify(params));
         const result = connection.prepare(sql).run(...params);
         // const result = await connection.run(sql, params);
@@ -338,7 +389,7 @@ export default class OLAPService {
     }
 
     _asSQLValue(value) {
-        if (value === undefined) return ''; // null;
+        if (value == undefined) return 'NULL'; // null;
         // if (typeof value === 'number') return value;
         if (typeof value === 'boolean') return value.toString();
         if (value instanceof Date) return value.toISOString();

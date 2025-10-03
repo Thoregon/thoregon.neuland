@@ -123,7 +123,7 @@ export default class FSSQLiteSyncNeulandStorageAdapter extends NeulandStorageAda
     }
 
     del(soul) {
-        this._stmtset.run(soul);
+        this._stmtdel.run(soul);
     }
 
     //

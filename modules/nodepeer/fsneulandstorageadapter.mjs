@@ -102,6 +102,12 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
         return true;
     }
 
+
+    async close() {
+        delete this.db;
+    }
+
+
     get isPROD() {
         return universe.stage === 'PROD';
     }

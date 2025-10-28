@@ -333,6 +333,10 @@ export default class OLAPService {
         return await this._buildResult(result);
     }
 
+    async queryPreparedPlus(name, sql, params) {
+        return this.query(sql, params);
+    }
+
     async _buildResult(result) {
         const columnNames = result.columnNames();
         const rows        = [];

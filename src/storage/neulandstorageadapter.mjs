@@ -43,6 +43,14 @@ export default class NeulandStorageAdapter {
     }
 
     //
+    //
+    //
+
+    async runGarbageCollection() {
+        // implement by subclass
+    }
+
+    //
     // DB type
     //
 

@@ -10,7 +10,7 @@
 import sfs                        from "fs";
 import fs                         from "fs/promises";
 import path                       from "path";
-import NeulandStorageAdapter      from "../../src/storage/neulandstorageadapter.mjs";
+import NeulandStorageAdapter      from "../neulandstorageadapter.mjs";
 import process                    from "process";
 
 // let storing = false;

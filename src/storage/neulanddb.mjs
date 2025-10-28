@@ -6,6 +6,8 @@
  * @see: {@link https://github.com/Thoregon}
  */
 
+export const ROOT = '00000000000000000000000000000000';
+
 let WRITE_INTERVAL = 2000;
 let WRITE_COUNT    = 100;
 
@@ -21,6 +23,9 @@ const USE_BACKUP          = true;
 const DBGID = '** NeulandDB';
 
 export default class NeulandDB {
+
+    static get ROOT() { return ROOT; }
+    get ROOT() { return ROOT; }
 
     init(StorageAdapter, storageOpt) {
         universe.debuglog(DBGID, "init");
@@ -43,11 +48,16 @@ export default class NeulandDB {
     async start() {
         universe.debuglog(DBGID, "start");
         const ok = await this.storage.load();
-        this.ready = ok;
         if (!ok) {
             universe.debuglog(DBGID, "start DONE");
             return;
         }
+
+        if (this.isMigrationRequired()) {
+            await this.doMigration();
+        }
+
+        this.ready = ok;
         this.auto();
         this._onready?.(this);
         delete this._onready;
@@ -145,23 +155,57 @@ export default class NeulandDB {
     // migration
     //
 
+    requestMigration(NeulandAdapter) {
+        this._migrationTarget = NeulandAdapter;
+    }
+
+    isMigrationRequired() {
+        return !!this._migrationTarget;
+    }
+
+    async doMigration() {
+        if (!this.isMigrationRequired()) return;    // sanity
+
+        console.log(`>> NeulandDB: Migration is required from: '${this.storage.constructor.name}' to '${this._migrationTarget.name}'`);
+        const storage = await this.migrateTo(this._migrationTarget);
+        if (!storage) {
+            console.error("Migration not performed");
+            return false;
+        }
+
+        // close current store
+        this.storage?.close();
+        // use new migration target store
+        this.storage = storage;
+
+        console.log(`>> NeulandDB: Migration done, '${this._migrationTarget.name}' used as storage adapter`);
+        return true;
+    }
+
     async migrateTo(TargetStorageAdapter) {
         const target = new TargetStorageAdapter();
         target.init(this.opt)
-        const ok = await this.storage.load();
-        if (!ok) return console.warn("NeulandDB: can't migrate, target not ready");
+        // const ok = await this.storage.load();
+        // if (!ok) return console.warn("NeulandDB: can't migrate, target not ready");
 
+        // the anchor needs to be replaced with the new ROOT
+        let anchor = universe.account.anchor;
+
+        console.log(`-- NeulandDB: START Migration to '${TargetStorageAdapter.name}'`);
         const keys = this.keys();
-        let i = 0;
+        let i = 0, j = 0;
         for (const key of keys) {
-            const val = this.get(key);
+            let val = this.get(key);
             if (!val) continue;
-            target.set(key, val);
+            if (anchor) val = val.replaceAll(key, ROOT);
+            target.set((anchor === key) ? ROOT : key, val);
             i++;
         }
 
         const stored = await target.store();
-        await target.close();
-        console.log("NeulandDB: migration done:", stored, "#", i);
+        console.log("-- NeulandDB: migration done, number of objects migrated", i);
+        await target.runGarbageCollection();
+        console.log("-- NeulandDB: Garbage Collection done");
+        return target;
     }
 }

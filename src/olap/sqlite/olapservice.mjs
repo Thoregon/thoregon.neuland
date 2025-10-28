@@ -15,10 +15,13 @@ import { cleanObject }     from "/evolux.util/lib/objutils.mjs";
 import fs                  from "fs";
 import path                from "path";
 import { isObject }        from "/evolux.util/lib/objutils.mjs";
-// import { DatabaseSync }      from 'node:sqlite';
-const Database = universe.nodeVersion >= 24
-                 ? (await import('node:sqlite')).DatabaseSync
-                 : (await import('better-sqlite3')).default;
+import { DatabaseSync }    from 'node:sqlite';
+
+const Database = DatabaseSync;
+
+// const Database = universe.nodeVersion >= 24
+//                  ? (await import('node:sqlite')).DatabaseSync
+//                  : (await import('better-sqlite3')).default;
 
 let connection;
 const preparedStatements = {};
@@ -59,7 +62,7 @@ export default class OLAPService {
         this.settings = settings;
 
         const dir  = (universe.NEULAND_STORAGE_OPT.location ?? 'data') + '/olap';
-        if (!fs.existsSync(dir)) await fs.mkdir(dir, { recursive: true });
+        if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         const dbname = settings?.db ?? 'olap';
         const dbfile = path.resolve(dir, `${dbname}.sqlite`);
         connection = await this.openDB(dbfile);
@@ -89,8 +92,10 @@ export default class OLAPService {
         if (isObject(params)) {
             params = prefixKeysWithColon(params);
             result = stmt.all(params);
-        } else {
+        } else if (Array.isArray(params)) {
             result = stmt.all(...params);
+        } else {
+            result = stmt.all(params);
         }
 
         return this._buildResult(result, stmt.columns());
@@ -102,50 +107,56 @@ export default class OLAPService {
     }
 
     async checkMigration() {
-        const currentVersion = await this.getDBVersionFromDB() ?? await this.getDBVersionFromFile();
+        let currentVersion = await this.getDBVersionFromDB(); // await this.getDBVersionFromFile();
+        if (!currentVersion) {
+            currentVersion = 0;
+            // no migration needed, but initial version record is needed
+            // await this.initMigration(currentVersion);
+        }
+        console.log("OLAPService.checkMigration current version", currentVersion);
 
         // for migration testing:
         // currentVersion = requiredVersion - 1;
         const requiredVersion = this.settings.version;
-        if (requiredVersion <= currentVersion) return; // no migration needed
+        console.log("OLAPService.checkMigration required version", requiredVersion);
+        if (requiredVersion <= currentVersion) return;
 
         await this.migrate(currentVersion);
     }
 
+    async ensureMigrationLog() {
+        const db = this.db;
+        if (db.prepare('SELECT COUNT(*) as i FROM sqlite_schema WHERE type=\'table\' and name=\'db_migration\';').get().i === 0) {
+            db.exec(`
+                CREATE TABLE IF NOT EXISTS db_migration
+                (
+                    version INTEGER PRIMARY KEY,
+                    type TEXT,
+                    error TEXT,
+                    dttm DATETIME DEFAULT (CURRENT_TIMESTAMP)
+                )
+            `);
+            console.log(">> SQLITE: CREATE TABLE db_migration");
+            db.exec(`CREATE UNIQUE INDEX IF NOT EXISTS version on db_migration(version)`);
+            console.log(">> SQLITE: CREATE  UNIQUE INDEX db_migration(version)");
+        }
+    }
+
     async getDBVersionFromDB() {
         try {
-            const currentVersion = await this.query('SELECT MAX(version) as current_version FROM db_migration');
-            return currentVersion?.rows[0]?.current_version ?? 2;
+            await this.ensureMigrationLog();
+            const res = await this.query('SELECT MAX(version) as current_version FROM db_migration');
+            const currentVersion = res?.rows[0]?.current_version ?? 0;
+            console.log(">> SQLite OLAPServer.getDBVersionFromDB", currentVersion);
+            return currentVersion;
         } catch (e) {
+            console.log(">> SQLite OLAPServer.getDBVersionFromDB: db_migration table does not exist");
             return null;
         }
     }
 
-    async getDBVersionFromFile() {
-        const fs   = universe.fs;    // get file system
-        const path = universe.path;
-        const olapsettingsfile = (universe.env.etcdir ?? './etc') + '/olap.mjs';
-        const stat = await fsstat(olapsettingsfile);
-        let currentVersion;
-        if (stat) {
-            try {
-                const module = await import(olapsettingsfile);
-                const olapetc = module.default;
-                currentVersion = olapetc?.version;
-            } catch (e) {
-                console.error(">> OLAPService (SQLLite): can't read olap version file", e);
-            }
-        }
-
-        if (!currentVersion) {
-            // write olapsettingsfile
-            await fs.writeFile(olapsettingsfile, `export default { version: 0 }`, { encoding: 'utf8' });
-            currentVersion = 0;
-        }
-        return currentVersion;
-    }
-
     async migrate(currentVersion) {
+        console.log("OLAPService.mirgate to version", currentVersion);
         const fs               = universe.fs;    // get file system
         const requiredVersion  = this.settings.version;
         let nextMigrateVersion = currentVersion + 1;
@@ -157,8 +168,13 @@ export default class OLAPService {
             }
             nextMigrateVersion++;
         } while (requiredVersion >= nextMigrateVersion);
+        console.log("OLAPService.mirgate DONE");
 
         // await fs.writeFile(olapsettingsfile, `export default { version: ${requiredVersion} }`, { encoding: 'utf8' });
+    }
+
+    async initMigration(currentVersion) {
+        await this.insert('db_migration', { version: currentVersion, type: 'migration', error: '' });
     }
 
     async doMigration(migration) {
@@ -199,13 +215,13 @@ export default class OLAPService {
     async openDB(dbfile) {
         const mkdb     = !fs.existsSync(dbfile);
         const db =  new Database(dbfile);
-        if (mkdb) {
-            if (universe.nodeVersion >= 24) {
-                db.exec('PRAGMA journal_mode = WAL');
-            } else {
-                db.pragma('journal_mode = WAL');
-            }
+        // if (mkdb) {
+        if (universe.nodeVersion >= 24) {
+            db.exec('PRAGMA journal_mode = WAL');
+        } else {
+            db.pragma('journal_mode = WAL');
         }
+        // }
         return db;
     }
 
@@ -227,7 +243,7 @@ export default class OLAPService {
         const defs      = tabledef.filter((item) => item.def && !item.name).map(item => item.def).join(', ');
         const cmds      = tabledef.filter((item) => item.cmd).map(item => item.cmd);
         const createsql = `CREATE TABLE ${tablename} (${columns.join(', ')}${defs ? ', ' + defs : ''});`;
-        console.log("SQL> ", createsql);
+        console.log(">> SQLite: ", createsql);
         try {
             connection.prepare(createsql).run();
             // await connection.exec(createsql);

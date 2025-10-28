@@ -1,7 +1,36 @@
 {
+  "name": "thoregon.neuland",
+  "version": "1.0.0",
+  "description": "thoregon DB layer",
+  "type": "module",
+  "main": "index.mjs",
+  "directories": {
+    "doc": "doc",
+    "test": "test"
+  },
   "dependencies": {
-    "@duckdb/node-api": "^1.2.0-alpha.14",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7"
-  }
+    "evolux.supervise": "file:../../evolux.modules/evolux.supervise",
+    "evolux.universe": "file:../../evolux.modules/evolux.universe",
+    "evolux.util": "file:../../evolux.modules/evolux.util",
+    "thoregon.archetim": "file:../thoregon.archetim",
+    "thoregon.crystalline": "file:../thoregon.crystalline",
+    "thoregon.truCloud": "file:../thoregon.truCloud"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Thoregon/thoregon.neuland.git"
+  },
+  "keywords": [
+    "neuland",
+    "db"
+  ],
+  "author": "Bernhard Lukassen",
+  "license": "SEE LICENSE IN LICENCE.txt",
+  "bugs": {
+    "url": "https://github.com/Thoregon/thoregon.neuland/issues"
+  },
+  "homepage": "https://github.com/Thoregon/thoregon.neuland#readme"
 }

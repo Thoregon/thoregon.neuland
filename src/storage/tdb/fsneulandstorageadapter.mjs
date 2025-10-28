@@ -11,7 +11,7 @@ import { serialize, deserialize } from "v8";
 import sfs                        from "fs";
 import fs                         from "fs/promises";
 import path                       from "path";
-import NeulandStorageAdapter      from "../../src/storage/neulandstorageadapter.mjs";
+import NeulandStorageAdapter      from "../neulandstorageadapter.mjs";
 import { exists, ensureDir }      from "/evolux.universe/lib/loader/fsutils.mjs";
 
 // let storing = false;

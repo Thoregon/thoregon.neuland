@@ -95,7 +95,7 @@ export default class OLAPService {
         } else if (Array.isArray(params)) {
             result = stmt.all(...params);
         } else {
-            result = stmt.all(params);
+            result = stmt.all();
         }
 
         return this._buildResult(result, stmt.columns());

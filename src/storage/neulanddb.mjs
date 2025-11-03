@@ -5,6 +5,9 @@
  * @licence: MIT
  * @see: {@link https://github.com/Thoregon}
  */
+import OLAPService from "../olap/sqlite/olapservice.mjs";
+import fs          from "fs";
+import path        from "path";
 
 export const ROOT = '00000000000000000000000000000000';
 
@@ -27,14 +30,14 @@ export default class NeulandDB {
     static get ROOT() { return ROOT; }
     get ROOT() { return ROOT; }
 
-    init(StorageAdapter, storageOpt) {
+    init(storageOpt) {
         universe.debuglog(DBGID, "init");
         this.mod       = 0;
         WRITE_COUNT    = storageOpt.writeCount ?? WRITE_COUNT;
         WRITE_INTERVAL = storageOpt.writeInterval ?? WRITE_INTERVAL;
         this.opt = { ...NEULAND_STORAGE_OPT, ...storageOpt };
         this.name = (storageOpt.name ?? 'neuland');
-        this.storage = new StorageAdapter();
+        // this.storage = new StorageAdapter();
         this.storage.init(this.opt);
         if (!this.opt.dontPublish) {
             const name = '$' + this.name;
@@ -44,6 +47,50 @@ export default class NeulandDB {
         universe.debuglog(DBGID, "init DONE");
         return this;
     }
+
+    useAdapter(StorageAdapter) {
+        this.storage = new StorageAdapter();
+        return this;
+    }
+
+    //
+    // info
+    //
+
+    isNeulandDBmissing(storageOpt) {
+        const dbfile = this.storage.getFileLocation(storageOpt);
+        return !fs.existsSync(dbfile);
+    }
+
+    getStorageLocation(storageOpt) {
+        return this.storage.getStorageLocation(storageOpt);
+    }
+
+    getDBFilePath(storageOpt, origFileName) {
+        return path.join(this.storage.getStorageLocation(storageOpt), origFileName);
+    }
+
+    // numbers
+    isNumbersMissing(storageOpt) {
+        const location = this.storage.getStorageLocation(storageOpt);
+        const filepath = path.join(location, 'numbers.json');
+    }
+
+    // OLAP forwarder
+
+    isOLAPDBmissing(storageOpt) {
+        const location = this.getStorageLocation(storageOpt);
+        return OLAPService.isOLAPDBmissing(location);
+    }
+
+    getOLAPFilePath(storageOpt) {
+        const location = this.getStorageLocation(storageOpt);
+        return OLAPService.getDBFilePath(location); //     path.join(OLAPService.getOLAPDBLocation(this.getStorageLocation(storageOpt)), OLAPService.getDBFileName());
+    }
+
+    //
+    // service
+    //
 
     async start() {
         universe.debuglog(DBGID, "start");
@@ -124,6 +171,10 @@ export default class NeulandDB {
 
     flush() {
         return this._store();
+    }
+
+    runGarbageCollection() {
+        this.storage.runGarbageCollection();
     }
 
     //

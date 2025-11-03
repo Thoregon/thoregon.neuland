@@ -28,14 +28,28 @@ export default class FSSQLiteSyncNeulandStorageAdapter extends NeulandStorageAda
 
     init({ location, name } = {}) {
         universe.debuglog(DBGID, "SQLiteDB adapter init");
-        this.opt           = { location, name };
-        const directory    = path.resolve(process.cwd(), location);
-        this.opt.directory = directory;
-        this.opt.sqlitefile = `${directory}/${name ?? 'neuland'}.sqlite`
-        this.storing = false;
+        this.opt          = { location, name };
+        const directory   = this.opt.directory = this.getStorageLocation({ location, name });
+        this.opt.filepath = this.getFileLocation({ location, name });
+        this.storing      = false;
         if (!sfs.existsSync(directory)) sfs.mkdirSync(directory, { recursive: true });
         this.initDB(this.opt);
-        universe.debuglog(DBGID, "SQLiteDB adapter init DONE", this.opt.directory);
+        universe.debuglog(DBGID, "SQLiteDB adapter init DONE", directory);
+    }
+
+    //
+    // info
+    //
+
+    getStorageLocation({ location, name } = {}) {
+        const directory    = path.resolve(process.cwd(), location);
+        return directory;
+    }
+
+    getFileLocation({ location, name } = {}) {
+        const directory    = this.getStorageLocation({ location, name });
+        const filepath = `${directory}/${name ?? 'neuland'}.sqlite`;
+        return filepath;
     }
 
     //
@@ -44,7 +58,7 @@ export default class FSSQLiteSyncNeulandStorageAdapter extends NeulandStorageAda
 
     initDB(opt) {
         try {
-            const filepath = opt.sqlitefile;
+            const filepath = opt.filepath;
             const db       = this.db = new Database(filepath);
 
             process.on('exit', () => this.db?.close());

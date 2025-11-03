@@ -23,13 +23,27 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
     init({ location, name } = {}) {
         universe.debuglog(DBGID, "FS adapter init");
         this.opt           = { location, name };
-        const directory    = path.resolve(process.cwd(), location);
-        this.opt.directory = directory;
-        this.opt.filepath  = `${directory}/${name ?? 'neuland'}.tdb`;
+        this.opt.directory = this.getStorageLocation({ location, name });
+        this.opt.filepath  = this.getFileLocation({ location, name });
         this.storing = false;
         ensureDir(location);
         ensureDir(`${location}/backup`);
         universe.debuglog(DBGID, "FS adapter init DONE", this.opt.filepath);
+    }
+
+    //
+    // info
+    //
+
+    getStorageLocation({ location, name } = {}) {
+        const directory    = path.resolve(process.cwd(), location);
+        return directory;
+    }
+
+    getFileLocation({ location, name } = {}) {
+        const directory    = this.getStorageLocation({ location, name });
+        const filepath = `${directory}/${name ?? 'neuland'}.tdb`;
+        return filepath;
     }
 
     //

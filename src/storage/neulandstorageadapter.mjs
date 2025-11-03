@@ -17,6 +17,18 @@ export default class NeulandStorageAdapter {
     }
 
     //
+    // info
+    //
+
+    getStorageLocation() {
+        // implement by subclasses
+    }
+
+    getFileLocation() {
+        // implement by subclasses
+    }
+
+    //
     // storage
     //
 

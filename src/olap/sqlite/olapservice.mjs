@@ -53,6 +53,37 @@ export default class OLAPService {
         console.log(">> OLAPService >> SQLite Sync ++", appinstance.qualifier);
     }
 
+    //
+    // info
+    //
+
+    static isOLAPDBmissing(datalocation) {
+        const filepath = this.getDBFilePath(datalocation);
+        return !fs.existsSync(filepath);
+    }
+
+    static getDBFilePath(datalocation) {
+        const dir = this.getOLAPDBLocation(datalocation);
+        const dbfile = this.getDBFileName();
+        const filepath = path.join(dir, dbfile);
+        return filepath;
+    }
+
+    static getDBFileName() {
+        const dbname = 'upayme';
+        const dbfile = `${dbname}.sqlite`;
+        return dbfile;
+    }
+
+    static getOLAPDBLocation(datalocation) {
+        return path.join(datalocation, 'olap');
+    }
+
+
+    //
+    // service
+    //
+
     async deactivate() {
         // run downcmds
         await connection?.close();
@@ -63,7 +94,7 @@ export default class OLAPService {
 
         const dir  = (universe.NEULAND_STORAGE_OPT.location ?? 'data') + '/olap';
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-        const dbname = settings?.db ?? 'olap';
+        const dbname = /*settings?.db ??*/ 'upayme';
         const dbfile = path.resolve(dir, `${dbname}.sqlite`);
         connection = await this.openDB(dbfile);
 

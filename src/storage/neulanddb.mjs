@@ -56,9 +56,11 @@ export default class NeulandDB {
     //
     // info
     //
+/*
 
     isNeulandDBmissing(storageOpt) {
         const dbfile = this.storage.getFileLocation(storageOpt);
+        console.log("-- neuland DB file", dbfile);
         return !fs.existsSync(dbfile);
     }
 
@@ -69,24 +71,27 @@ export default class NeulandDB {
     getDBFilePath(storageOpt, origFileName) {
         return path.join(this.storage.getStorageLocation(storageOpt), origFileName);
     }
-
-    // numbers
-    isNumbersMissing(storageOpt) {
-        const location = this.storage.getStorageLocation(storageOpt);
-        const filepath = path.join(location, 'numbers.json');
-    }
+*/
 
     // OLAP forwarder
 
+/*
     isOLAPDBmissing(storageOpt) {
         const location = this.getStorageLocation(storageOpt);
+        console.log("-- OLAP DB file", location);
         return OLAPService.isOLAPDBmissing(location);
+    }
+
+    getOLAPDBLocation(storageOpt) {
+        const location = this.getStorageLocation(storageOpt);
+        return OLAPService.getOLAPDBLocation(location);
     }
 
     getOLAPFilePath(storageOpt) {
         const location = this.getStorageLocation(storageOpt);
-        return OLAPService.getDBFilePath(location); //     path.join(OLAPService.getOLAPDBLocation(this.getStorageLocation(storageOpt)), OLAPService.getDBFileName());
+        return OLAPService.getDBFilePath(location);
     }
+*/
 
     //
     // service

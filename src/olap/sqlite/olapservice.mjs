@@ -16,6 +16,7 @@ import fs                  from "fs";
 import path                from "path";
 import { isObject }        from "/evolux.util/lib/objutils.mjs";
 import { DatabaseSync }    from 'node:sqlite';
+import process             from "process";
 
 const Database = DatabaseSync;
 
@@ -57,6 +58,7 @@ export default class OLAPService {
     // info
     //
 
+/*
     static isOLAPDBmissing(datalocation) {
         const filepath = this.getDBFilePath(datalocation);
         return !fs.existsSync(filepath);
@@ -78,6 +80,7 @@ export default class OLAPService {
     static getOLAPDBLocation(datalocation) {
         return path.join(datalocation, 'olap');
     }
+*/
 
 
     //
@@ -86,16 +89,16 @@ export default class OLAPService {
 
     async deactivate() {
         // run downcmds
-        await connection?.close();
+        await this.closeDB(connection);
     }
 
     async init(settings) {
         this.settings = settings;
 
-        const dir  = (universe.NEULAND_STORAGE_OPT.location ?? 'data') + '/olap';
+        const dir  = path.resolve((universe.NEULAND_STORAGE_OPT.location ?? 'data'), 'olap');
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         const dbname = /*settings?.db ??*/ 'upayme';
-        const dbfile = path.resolve(dir, `${dbname}.sqlite`);
+        const dbfile = path.join(dir, `${dbname}.sqlite`);
         connection = await this.openDB(dbfile);
 
         await this.checkMigration();
@@ -246,6 +249,9 @@ export default class OLAPService {
     async openDB(dbfile) {
         const mkdb     = !fs.existsSync(dbfile);
         const db =  new Database(dbfile);
+        process.on('exit', () => this.closeDB(db) );
+        process.on('SIGTERM', () => this.closeDB(db));
+        process.on('SIGINT', () => this.closeDB(db));
         // if (mkdb) {
         if (universe.nodeVersion >= 24) {
             db.exec('PRAGMA journal_mode = WAL');
@@ -254,6 +260,17 @@ export default class OLAPService {
         }
         // }
         return db;
+    }
+
+    closeDB(db) {
+        if (this._dbclosed) return;
+        try {
+            this._dbclosed = true
+            db?.close();
+            console.log(">> OLAPService: SQLite DB closed");
+        } catch (ignore) {
+            console.error("** OLAPService", ignore);
+        }
     }
 
     get db() {
@@ -273,7 +290,7 @@ export default class OLAPService {
         const columns   = tabledef.filter((item) => item.name).map(item => `${item.name} ${item.def}`);
         const defs      = tabledef.filter((item) => item.def && !item.name).map(item => item.def).join(', ');
         const cmds      = tabledef.filter((item) => item.cmd).map(item => item.cmd);
-        const createsql = `CREATE TABLE ${tablename} (${columns.join(', ')}${defs ? ', ' + defs : ''});`;
+        const createsql = `CREATE TABLE IF NOT EXISTS ${tablename} (${columns.join(', ')}${defs ? ', ' + defs : ''});`;
         console.log(">> SQLite: ", createsql);
         try {
             connection.prepare(createsql).run();

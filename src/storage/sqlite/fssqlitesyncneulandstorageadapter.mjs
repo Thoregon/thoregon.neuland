@@ -60,13 +60,25 @@ export default class FSSQLiteSyncNeulandStorageAdapter extends NeulandStorageAda
         try {
             const filepath = opt.filepath;
             const db       = this.db = new Database(filepath);
-
-            process.on('exit', () => this.db?.close());
+            process.on('exit', () => this.closeDB(db));
+            process.on('SIGTERM', () => this.closeDB(db));
+            process.on('SIGINT', () => this.closeDB(db));
             this.migrateDB(db);
             this.prepareStatements(db);
             console.log("** SQLiteDB adapter initialized");
         } catch (e) {
             console.error('>> FSSQLiteSyncNeulandStorageAdapter', e, e.stack);
+        }
+    }
+
+    closeDB(db) {
+        if (this._dbclosed) return;
+        try {
+            this._dbclosed = true
+            db?.close();
+            console.log(">> FSSQLiteSyncNeulandStorageAdapter: SQLite DB closed");
+        } catch (ignore) {
+            console.error("** FSSQLiteSyncNeulandStorageAdapter", ignore);
         }
     }
 
@@ -223,7 +235,7 @@ WHERE soul in (SELECT n.soul
     async create() {}
 
     async close() {
-        this.db?.close();
+        this.closeDB(this.db);
         delete this.db;
     }
 

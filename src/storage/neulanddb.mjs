@@ -246,6 +246,11 @@ export default class NeulandDB {
 
         // the anchor needs to be replaced with the new ROOT
         let anchor = universe.account.anchor;
+        if (anchor) {
+            console.log(`-- NeulandDB: anchor for migration:`, anchor);
+        } else {
+            console.log(`-- NeulandDB: no anchor for migration:`);
+        }
 
         console.log(`-- NeulandDB: START Migration to '${TargetStorageAdapter.name}'`);
         const keys = this.keys();

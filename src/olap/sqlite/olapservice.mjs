@@ -123,16 +123,31 @@ export default class OLAPService {
     queryPrepared(name, params) {
         const stmt = this.prepared(name);
         let result;
-        if (isObject(params)) {
+        if (Array.isArray(params)) {
+            result = stmt.all(...params);
+        } else if (isObject(params)) {
             params = prefixKeysWithColon(params);
             result = stmt.all(params);
-        } else if (Array.isArray(params)) {
-            result = stmt.all(...params);
         } else {
             result = stmt.all();
         }
 
         return this._buildResult(result, stmt.columns());
+    }
+
+    runPrepared(name, params) {
+        const stmt = this.prepared(name);
+        let result;
+        if (Array.isArray(params)) {
+            result = stmt.run(...params);
+        } else if (isObject(params)) {
+            params = prefixKeysWithColon(params);
+            result = stmt.run(params);
+        } else {
+            result = stmt.run();
+        }
+
+        return result;
     }
 
     queryPreparedPlus(name, sql, params) {

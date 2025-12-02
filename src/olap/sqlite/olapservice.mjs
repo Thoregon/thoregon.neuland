@@ -333,7 +333,7 @@ export default class OLAPService {
      * @param sequence  ... return the current value of the specified sequence
      * @returns {Promise<unknown>}
      */
-    async insert(table, data, { replace = false/*, sequence*/ } = {}) {
+    async insert(table, data, { replace = false, sequence } = {}) {
         let sql = `INSERT ${replace ? 'OR REPLACE' : ''} INTO ${table} `;
 
         // todo: filter all 'null/undefined' values
@@ -347,13 +347,16 @@ export default class OLAPService {
             if (names.length < 0) return;
             data = Object.values(data);
             sql += '(' + names.join(', ') + ') ';
-            sql += 'VALUES (' + new Array(data.length).fill('?').join(", ") + ')'
+            sql += 'VALUES (' + new Array(data.length).fill('?').join(", ") + ')';
+            if (sequence) sql += ` RETURNING ${sequence}`;
         }
 
         const values = this._asSQLValues(data);
         let res = await this.exec(sql, values);
 
-        return res;
+        return sequence
+            ? res?.rows?.[0][sequence]
+            : res;
     }
 
     async get(table, where) {

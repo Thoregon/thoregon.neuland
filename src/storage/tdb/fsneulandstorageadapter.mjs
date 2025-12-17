@@ -53,7 +53,9 @@ export default class FSNeulandStorageAdapter extends NeulandStorageAdapter {
     async load(retry = true) {
         const filepath = this.opt.filepath;
         if (!exists(filepath)) {
+            console.log(`TDB doesn't exist, try get backup: ${filepath} `);
             if (this.isPROD || !(await this.restoreBackup(filepath))) {
+                console.log(`Can't restore backup, creat new DB`);
                 this.db = this.newInnerDB();
                 await this.create();
             }

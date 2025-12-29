@@ -183,6 +183,22 @@ export default class NeulandDB {
     }
 
     //
+    // identity helper
+    //
+
+    migrateRoot(anchor) {
+        if (!this.has(ROOT)) {
+            if (this.has(anchor)) {
+                const obj = this.storage.get(anchor);
+                this.storage.set(ROOT, obj);
+                // later remove the old 'anchor' entry
+                // this.storage.del(anchor);
+            }
+        }
+        return ROOT;
+    }
+
+    //
     // items
     //
 

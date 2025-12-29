@@ -17,6 +17,9 @@ import path                from "path";
 import { isObject }        from "/evolux.util/lib/objutils.mjs";
 import { DatabaseSync }    from 'node:sqlite';
 import process             from "process";
+import { manageBackups }   from "evolux.util/lib/managebackup.mjs";
+import { filename }        from "evolux.util";
+import universe            from "evolux.universe/lib/universe.mjs";
 
 const Database = DatabaseSync;
 
@@ -98,9 +101,12 @@ export default class OLAPService {
         const dir  = path.resolve((universe.NEULAND_STORAGE_OPT.location ?? 'data'), 'olap');
         if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
         const dbname = /*settings?.db ??*/ 'upayme';
-        const dbfile = path.join(dir, `${dbname}.sqlite`);
-        connection = await this.openDB(dbfile);
+        const filename = `${dbname}.sqlite`;
+        const dbfile = path.join(dir, filename);
 
+        this.manageBackups(dir, filename);
+
+        connection = await this.openDB(dbfile);
         await this.checkMigration();
 
     }
@@ -153,6 +159,27 @@ export default class OLAPService {
     queryPreparedPlus(name, sql, params) {
         if (!this.hasPrepared(name)) this.prepare(name, sql);
         return this.queryPrepared(name, params);
+    }
+
+    //
+    // SQLite
+    //
+
+    manageBackups(directory, name) {
+        let db;
+        try {
+            const dbfile = path.join(directory, name);
+            if (!fs.existsSync(dbfile)) return; // only if it exists
+            db = new Database(dbfile);
+            db.exec('PRAGMA journal_mode = WAL');
+            db.exec('PRAGMA wal_autocheckpoint = 2');
+            db.close();
+            manageBackups(directory, name);
+        } catch (e) {
+            if (db) try { db.close() } catch(ignore) {}
+            const alias = universe.account?.alias ?? 'unknown';
+            universe.MailSender?.sendDirectEmail({ sender: alias +'.upayme@upay.me', receiver: 'upaymeinstance@bernhard-lukassen.com', subject: 'NEULAND BACKUP ERROR ' + alias, bodytext: `Error at neuland backup ${e.message}\n\n${e.stack}` });
+        }
     }
 
     async checkMigration() {
@@ -264,14 +291,13 @@ export default class OLAPService {
     async openDB(dbfile) {
         const mkdb     = !fs.existsSync(dbfile);
         const db =  new Database(dbfile);
-        process.on('exit', () => this.closeDB(db) );
-        process.on('SIGTERM', () => this.closeDB(db));
-        process.on('SIGINT', () => this.closeDB(db));
-        // if (mkdb) {
+        universe.atDusk(() => this.closeDB(db));
         if (universe.nodeVersion >= 24) {
             db.exec('PRAGMA journal_mode = WAL');
+            db.exec('PRAGMA wal_autocheckpoint = 2');
         } else {
             db.pragma('journal_mode = WAL');
+            db.pragma('wal_autocheckpoint = 2');
         }
         // }
         return db;

@@ -14,6 +14,8 @@ import NeulandStorageAdapter from "../neulandstorageadapter.mjs";
 import process               from "process";
 // import Database              from 'better-sqlite3';
 import { DatabaseSync }      from 'node:sqlite';
+import { manageBackups}      from "evolux.util/lib/managebackup.mjs";
+import universe              from "evolux.universe/lib/universe.mjs";
 
 const Database = DatabaseSync;
 
@@ -33,6 +35,9 @@ export default class FSSQLiteSyncNeulandStorageAdapter extends NeulandStorageAda
         this.opt.filepath = this.getFileLocation({ location, name });
         this.storing      = false;
         if (!sfs.existsSync(directory)) sfs.mkdirSync(directory, { recursive: true });
+
+        this.manageBackups(directory, `${name}.sqlite`);
+
         this.initDB(this.opt);
         universe.debuglog(DBGID, "SQLiteDB adapter init DONE", directory);
     }
@@ -53,16 +58,31 @@ export default class FSSQLiteSyncNeulandStorageAdapter extends NeulandStorageAda
     }
 
     //
+    // SQLite
     //
-    //
+
+    manageBackups(directory, name) {
+        let db;
+        try {
+            const filepath = this.opt.filepath;
+            if (!sfs.existsSync(filepath)) return; // only if it exists
+            db = new Database(filepath);
+            db.exec('PRAGMA journal_mode = WAL');
+            db.exec('PRAGMA wal_autocheckpoint = 2');
+            db.close();
+            manageBackups(directory, name);
+        } catch (e) {
+            if (db) try { db.close() } catch(ignore) {}
+            const alias = universe.account?.alias ?? 'unknown';
+            universe.MailSender?.sendDirectEmail({ sender: alias +'.upayme@upay.me', receiver: 'upaymeinstance@bernhard-lukassen.com', subject: 'NEULAND BACKUP ERROR ' + alias, bodytext: `Error at neuland backup ${e.message}\n\n${e.stack}` });
+        }
+    }
 
     initDB(opt) {
         try {
             const filepath = opt.filepath;
             const db       = this.db = new Database(filepath);
-            process.on('exit', () => this.closeDB(db));
-            process.on('SIGTERM', () => this.closeDB(db));
-            process.on('SIGINT', () => this.closeDB(db));
+            universe.atDusk(() => this.closeDB(db));
             this.migrateDB(db);
             this.prepareStatements(db);
             console.log("** SQLiteDB adapter initialized");
@@ -86,8 +106,10 @@ export default class FSSQLiteSyncNeulandStorageAdapter extends NeulandStorageAda
         console.log("SQLiteNeulandAdapter.migrate");
         if (universe.nodeVersion >= 24) {
             db.exec('PRAGMA journal_mode = WAL');
+            db.exec('PRAGMA wal_autocheckpoint = 2');
         } else {
             db.pragma('journal_mode = WAL');
+            db.pragma('wal_autocheckpoint = 2');
         }
         if (db.prepare('SELECT COUNT(*) as i FROM sqlite_schema WHERE type=\'table\' and name=\'neuland\';').get().i === 0) {
             db.exec(`
@@ -244,6 +266,8 @@ WHERE soul in (SELECT n.soul
     //
 
     runGarbageCollection() {
+        // check again if it works proper!
+/*
         try {
             let i = 15, num = 0, start = Date.now();
             console.log("** SQLite Neuland adapter run Garbage Collection, current num of objects", this._stmtObjectCount.get().num);
@@ -259,6 +283,7 @@ WHERE soul in (SELECT n.soul
         } catch (e) {
             console.error("** SQLite Neuland adapter during Garbage Collection", e, e.stack);
         }
+*/
     }
 
     //

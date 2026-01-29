@@ -448,6 +448,13 @@ export default class OLAPService {
      * @returns {Promise<*[]>}
      */
 
+    exists(sql, params = []) {
+        const stmt = connection.prepare(sql);
+        const result = stmt.all(...params);
+        const exists = result?.rows?.length > 0 ?? false;
+        return exists;
+    }
+
     query(sql, params = []) {
         const stmt = connection.prepare(sql);
         const result = stmt.all(...params);

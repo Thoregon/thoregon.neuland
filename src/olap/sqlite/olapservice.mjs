@@ -19,7 +19,7 @@ import { DatabaseSync }    from 'node:sqlite';
 import process             from "process";
 import { manageBackups }   from "evolux.util/lib/managebackup.mjs";
 import { filename }        from "evolux.util";
-import universe            from "evolux.universe/lib/universe.mjs";
+// import universe            from "evolux.universe/lib/universe.mjs";
 
 const Database = DatabaseSync;
 

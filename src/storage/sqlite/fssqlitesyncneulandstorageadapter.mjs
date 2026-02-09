@@ -15,14 +15,9 @@ import process               from "process";
 // import Database              from 'better-sqlite3';
 import { DatabaseSync }      from 'node:sqlite';
 import { manageBackups}      from "evolux.util/lib/managebackup.mjs";
-import universe              from "evolux.universe/lib/universe.mjs";
+// import universe              from "evolux.universe/lib/universe.mjs";
 
 const Database = DatabaseSync;
-
-// const Database = universe.nodeVersion >= 24
-//                  ? (await import('node:sqlite')).DatabaseSync
-//                  : (await import('better-sqlite3')).default;
-// let storing = false;
 
 const DBGID = '** NeulandDB';
 

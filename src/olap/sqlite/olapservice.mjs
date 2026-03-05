@@ -451,7 +451,7 @@ export default class OLAPService {
     exists(sql, params = []) {
         const stmt = connection.prepare(sql);
         const result = stmt.all(...params);
-        const exists = result?.rows?.length > 0 ?? false;
+        const exists = result?.rows ? result.rows.length > 0 : result?.length ? result?.length > 0 : false;
         return exists;
     }
 
